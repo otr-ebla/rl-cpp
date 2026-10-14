@@ -59,6 +59,34 @@ Each folder contains a metrics folder. Visualize the paths like this:
 Run tests:
 * Run `pytest` from the root folder.
 
+## Multi-agent lawn mowing (MAPPO, JAX)
+
+The `marl` package extends the mowing task to N robots, trained with MAPPO (centralized training, decentralized execution). The environment, the networks and the training all run in JAX, so thousands of environments can be simulated and trained in parallel on a GPU.
+
+* All robots share one global map (perfect communication). Each step all robots move simultaneously, the shared coverage and known obstacle maps are updated with the contributions of all robots, and each robot extracts its own egocentric multi-scale observation from the shared maps.
+* The observation of each robot is the same as in the single-agent case (coverage, known obstacles, frontier, lidar), plus a multi-scale map of the other robots' positions. Robots are dynamic obstacles: they are seen by the lidar and collisions between robots are penalized, but they are not added to the obstacle map.
+* The actor only uses the robot's own observation, and its parameters are shared between robots, so a trained policy can be run with any number of robots. The centralized critic also sees an agent-specific global state: global maps of the coverage, the true and the known obstacles and all robots, the robot's own position, and the team coverage and elapsed time.
+* Reward: the single-agent reward per robot, where the area term mixes the robot's own newly covered area and the team's newly covered area divided by N (`--team_reward_weight`, 0 = individual, 1 = team). Area covered by k robots in the same step is split 1/k between them. The incremental total variation term is computed on each robot's own contribution.
+* Maps of different sizes are placed on a fixed canvas (`--canvas_size`, 320 pixels for the training maps). The training levels follow `MowerEnv._set_level` (fixed training maps, then random maps); random maps are drawn from a bank that is regenerated periodically.
+
+Install (separate environment, Python >= 3.11):
+* `conda create -n rlm-marl python=3.11`
+* `conda activate rlm-marl`
+* `pip install -r requirements-marl.txt` (`jax[cuda12]` for NVIDIA GPUs; use plain `jax` for CPU only)
+
+Train and evaluate:
+* Train with 4 robots: `python train_marl.py --logdir experiments/marl_4 --num_agents 4`
+* Use as many parallel environments as the GPU memory allows, e.g. `--num_envs 1024`. The rollout stores `num_envs * num_steps * num_agents` uint8 observations of 32x32x16 bytes, plus one 64x64x4 global map per environment and step.
+* `--total_steps` counts environment steps (each one is `num_agents` agent steps). Every field of `marl/config.py` is a command line argument.
+* Logs are written to `<logdir>/progress.csv`, checkpoints to `<logdir>/checkpoint`.
+* Evaluate on the mowing evaluation maps: `python eval_marl.py --load experiments/marl_4/checkpoint` (add `--num_agents 8` to change the number of robots, `--maps "maps/giant_mowing_*.png"` for other maps). Writes `metrics.csv` (coverage, time to 90/95/99% coverage, overlap, collisions) and an image of the robot paths per episode to `<checkpoint>/eval`.
+
+Notes:
+* Not implemented in the multi-agent version: stacked observations, action observations, acceleration limits, action delay, the frontier and global total variation rewards (all off by default for mowing), and the exploration task.
+* Truncated episodes (time limit or no new coverage) are treated as terminal in the advantage estimation.
+* The per-scale (grouped) convolutions are implemented with a block-diagonal kernel, since grouped convolutions are very slow to differentiate on some XLA backends.
+* Run the tests with `pytest tests/test_marl.py` (CPU is enough). On CPU, XLA runs convolutions inside the training loop slowly, so CPU training is only useful for debugging.
+
 ## Cite
 
 Conference paper:
