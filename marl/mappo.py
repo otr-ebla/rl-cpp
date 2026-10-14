@@ -32,7 +32,7 @@ from marl.networks import Actor, Critic
 
 
 class Transition(NamedTuple):
-    maps: jnp.ndarray       # T x E x N x H x W x C uint8
+    maps: jnp.ndarray       # T x E x N x C x H x W uint8 (channels first, see _rollout)
     lidar: jnp.ndarray      # T x E x N x R
     global_maps: jnp.ndarray  # T x E x G x G x 4 uint8
     agent: jnp.ndarray      # T x E x N x F
@@ -92,6 +92,16 @@ def gaussian_log_prob(x, mean, log_std):
 
 def gaussian_entropy(log_std):
     return jnp.sum(log_std + 0.5 * (1 + jnp.log(2 * jnp.pi)), axis=-1)
+
+
+def to_channels_first(maps):
+    """(..., H, W, C) -> (..., C, H, W)"""
+    return jnp.moveaxis(maps, -1, -3)
+
+
+def to_channels_last(maps):
+    """(..., C, H, W) -> (..., H, W, C)"""
+    return jnp.moveaxis(maps, -3, -1)
 
 
 def huber(x, delta):
@@ -175,8 +185,11 @@ class MAPPO:
             value = self.critic.apply(runner.critic.params, obs['maps'], obs['lidar'], obs['global'], obs['agent'])
             next_obs, env_state, reward, done, info = env_step(
                 jax.random.split(k_env, E), env_state, action.reshape(E, N, A), env_params)
+            # The maps are stored channels first, the layout XLA picks for the
+            # convolutions. Stored channels last, XLA transposes the whole
+            # trajectory (2 GB for 256 environments) before the minibatch loop.
             transition = Transition(
-                obs['maps'], obs['lidar'], obs['global'], obs['agent'], action.reshape(E, N, A),
+                to_channels_first(obs['maps']), obs['lidar'], obs['global'], obs['agent'], action.reshape(E, N, A),
                 logp.reshape(E, N), value, reward, done)
             info = dict(info, done=done)
             return (env_state, next_obs, key), (transition, info)
@@ -208,7 +221,8 @@ class MAPPO:
     def _actor_loss(self, params, batch):
         cfg = self.cfg
         # flatten environment steps and robots
-        maps = batch['maps'].reshape((-1,) + batch['maps'].shape[2:])
+        maps = to_channels_last(batch['maps'])
+        maps = maps.reshape((-1,) + maps.shape[2:])
         lidar = batch['lidar'].reshape((-1,) + batch['lidar'].shape[2:])
         action = batch['action'].reshape((-1,) + batch['action'].shape[2:])
         old_logp = batch['logp'].reshape(-1)
@@ -227,7 +241,7 @@ class MAPPO:
 
     def _critic_loss(self, params, value_norm, batch):
         cfg = self.cfg
-        value = self.critic.apply(params, batch['maps'], batch['lidar'], batch['global_maps'], batch['agent'])
+        value = self.critic.apply(params, to_channels_last(batch['maps']), batch['lidar'], batch['global_maps'], batch['agent'])
         target = batch['target']
         if cfg.use_value_norm:
             target = value_norm.normalize(target)
