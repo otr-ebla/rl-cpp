@@ -8,7 +8,6 @@ import numpy as np
 import os
 import time
 from argparse import BooleanOptionalAction
-from matplotlib import pyplot as plt
 
 import rlm.utils
 from rlm.mower_env import MowerEnv
@@ -150,7 +149,8 @@ def main():
                     img = env.render(mode='rgb_array')
                     writer.append_data(img)
                 elif args.save_path_interval:
-                    env.render(mode='limited')
+                    from matplotlib import pyplot as plt
+                    env.render(mode='limited', backend='matplotlib')
                     if step % args.save_path_interval == 0 or done:
                         plt.savefig(f'path_{ep}ep_{step}step.pdf')
                 else:
@@ -267,6 +267,7 @@ def main():
 
     # Plot data
     if args.plot or (args.save_pdf and args.load is not None):
+        from matplotlib import pyplot as plt
         fig, ax = plt.subplots(2, 3, figsize=(10, 6), layout='constrained')
         mean_time = times.mean(axis=0)
         mean_coverage = 100 * coverages.mean(axis=0)

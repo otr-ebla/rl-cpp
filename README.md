@@ -28,7 +28,12 @@ Train an RL agent for CPP in a simulated 2D environment (reduce `--buffer_size` 
 
 Check how the trained agent performs:
 * Plot logs: `python plot.py --load my-experiment`
-* Render: `python eval.py --load my-experiment`
+* Render: `python eval.py --load my-experiment` (add `--render_mode full` to also show the multi-scale observations)
+
+Rendering uses pygame. Keyboard controls in the render window:
+* `c`: show/hide the multi-scale map crops, centered on and rotated with the agent (the thick edge is the forward direction)
+* `s`: cycle the simulation speed: x1 (real time), x2, x4, x8, max
+* `q`/`Esc`: quit
 
 Run full quantitative evaluation and show the resulting paths and metrics:
 * Run eval: `python eval.py --load my-experiment --verbose --no-render --metrics_dir metrics`

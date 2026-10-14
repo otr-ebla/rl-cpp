@@ -7,8 +7,6 @@ import os
 import random
 import time
 from gym import spaces
-from matplotlib import pyplot as plt
-from matplotlib import transforms as mtransforms
 from PIL import Image, ImageDraw, ImageFont
 
 from rlm import utils
@@ -269,6 +267,7 @@ class MowerEnv(gym.Env):
 
         # Additional variables, set up level, reset maps etc.
         self.axes = None
+        self.renderer = None
         self.current_episode = 0
         self.level = start_level
         self.next_train_map = 0
@@ -642,8 +641,31 @@ class MowerEnv(gym.Env):
                   f'Time: {dt_step}/{dt_lidar}/{dt_other} ms step/lidar/etc')
         return obs, reward, done, info
 
-    def render(self, mode):
+    def render(self, mode, backend='pygame'):
+        """
+        Renders the environment.
+
+        mode: 'full', 'limited' or 'rgb_array'
+        backend: 'pygame' (fast, interactive) or 'matplotlib' (used for
+            'rgb_array' and when saving figures with pyplot)
+        """
         assert mode in ['full', 'limited', 'rgb_array']
+        assert backend in ['pygame', 'matplotlib']
+        if mode == 'rgb_array':
+            backend = 'matplotlib'
+        if backend == 'pygame':
+            if self.renderer is None or self.renderer.mode != mode:
+                from rlm.renderer import PygameRenderer
+                if self.renderer is not None:
+                    self.renderer.close()
+                self.renderer = PygameRenderer(self, mode)
+            self.renderer.render()
+            return
+        return self._render_matplotlib(mode)
+
+    def _render_matplotlib(self, mode):
+        from matplotlib import pyplot as plt
+        from matplotlib import transforms as mtransforms
 
         # Construct pyplot figure
         if self.axes is None:
@@ -779,7 +801,13 @@ class MowerEnv(gym.Env):
         plt.pause(0.001)
 
     def close(self):
-        plt.close('all')
+        if self.renderer is not None:
+            self.renderer.close()
+            self.renderer = None
+        if self.axes is not None:
+            from matplotlib import pyplot as plt
+            plt.close('all')
+            self.axes = None
 
     def _randomize_pose(self, mower_radius):
         """
