@@ -102,20 +102,20 @@ def huber(x, delta):
 def make_networks(env_cfg: EnvConfig, train_cfg: TrainConfig):
     actor = Actor(env_cfg.action_dim, env_cfg.num_maps, train_cfg.hidden_dims,
                   train_cfg.grouped_convs, train_cfg.init_log_std)
-    g = env_cfg.canvas_size // env_cfg.global_size
-    own_radius = (env_cfg.radius_p + g * 0.7072) / env_cfg.canvas_size
-    critic = Critic(env_cfg.num_maps, own_radius, train_cfg.hidden_dims, train_cfg.grouped_convs)
+    critic = Critic(env_cfg.num_maps, train_cfg.hidden_dims, train_cfg.grouped_convs)
     return actor, critic
 
 
-def dummy_inputs(env_cfg: EnvConfig):
+def init_params(env_cfg: EnvConfig, actor, critic, key):
+    """Initial actor and critic parameters"""
     H = env_cfg.input_size
     G = env_cfg.global_size
-    return dict(
-        maps=jnp.zeros((1, H, H, env_cfg.obs_channels), dtype=jnp.uint8),
-        lidar=jnp.zeros((1, env_cfg.lidar_rays)),
-        global_maps=jnp.zeros((1, G, G, env_cfg.global_channels), dtype=jnp.uint8),
-        agent=jnp.zeros((1, env_cfg.agent_features)))
+    maps = jnp.zeros((1, 1, H, H, env_cfg.obs_channels), dtype=jnp.uint8)
+    lidar = jnp.zeros((1, 1, env_cfg.lidar_rays))
+    global_maps = jnp.zeros((1, G, G, env_cfg.global_channels), dtype=jnp.uint8)
+    agent = jnp.zeros((1, 1, env_cfg.agent_features))
+    k_actor, k_critic = jax.random.split(key)
+    return actor.init(k_actor, maps[0], lidar[0]), critic.init(k_critic, maps, lidar, global_maps, agent)
 
 
 class MAPPO:
@@ -126,8 +126,10 @@ class MAPPO:
         self.env = MultiMowerEnv(env_cfg)
         self.actor, self.critic = make_networks(env_cfg, train_cfg)
         self.num_updates = max(1, train_cfg.total_steps // (train_cfg.num_envs * train_cfg.num_steps))
-        samples = train_cfg.num_envs * train_cfg.num_steps * env_cfg.num_agents
-        assert samples % train_cfg.num_minibatches == 0, 'num_envs * num_steps * num_agents must be divisible by num_minibatches'
+        # Minibatches hold all robots of minibatch_size / num_agents environment steps
+        env_steps = train_cfg.num_envs * train_cfg.num_steps
+        self.minibatch_env_steps = max(1, min(env_steps, train_cfg.minibatch_size // env_cfg.num_agents))
+        self.num_minibatches = env_steps // self.minibatch_env_steps
         self.update = jax.jit(self._update, donate_argnums=0)
 
     # ---------------------------------------------------------------- setup
@@ -135,18 +137,16 @@ class MAPPO:
     def _optimizer(self, lr):
         cfg = self.cfg
         if cfg.anneal_lr:
-            steps = self.num_updates * cfg.update_epochs * cfg.num_minibatches
+            steps = self.num_updates * cfg.update_epochs * self.num_minibatches
             lr = optax.linear_schedule(lr, 0.0, steps)
         return optax.chain(optax.clip_by_global_norm(cfg.max_grad_norm), optax.adam(lr, eps=1e-5))
 
     def init(self, key, env_params: EnvParams, actor_params=None, critic_params=None):
         cfg = self.cfg
-        k_actor, k_critic, k_env, key = jax.random.split(key, 4)
-        x = dummy_inputs(self.env_cfg)
-        if actor_params is None:
-            actor_params = self.actor.init(k_actor, x['maps'], x['lidar'])
-        if critic_params is None:
-            critic_params = self.critic.init(k_critic, x['maps'], x['lidar'], x['global_maps'], x['agent'])
+        k_init, k_env, key = jax.random.split(key, 3)
+        actor_init, critic_init = init_params(self.env_cfg, self.actor, self.critic, k_init)
+        actor_params = actor_init if actor_params is None else actor_params
+        critic_params = critic_init if critic_params is None else critic_params
         actor = TrainState.create(apply_fn=self.actor.apply, params=actor_params,
                                   tx=self._optimizer(cfg.actor_lr))
         critic = TrainState.create(apply_fn=self.critic.apply, params=critic_params,
@@ -156,14 +156,6 @@ class MAPPO:
         return RunnerState(actor, critic, ValueNorm.create(), env_state, obs, key)
 
     # --------------------------------------------------------------- update
-
-    def _flat_inputs(self, maps, lidar, global_maps, agent):
-        """Broadcast the per environment global maps to the robots and flatten"""
-        N = self.env_cfg.num_agents
-        lead = maps.shape[:-4]
-        g = jnp.broadcast_to(global_maps[..., None, :, :, :], lead + (N,) + global_maps.shape[-3:])
-        flat = lambda x: x.reshape((-1,) + x.shape[len(lead) + 1:])
-        return flat(maps), flat(lidar), flat(g), flat(agent)
 
     def _rollout(self, runner: RunnerState, env_params):
         cfg = self.cfg
@@ -175,16 +167,17 @@ class MAPPO:
         def step(carry, _):
             env_state, obs, key = carry
             key, k_act, k_env = jax.random.split(key, 3)
-            maps, lidar, g, agent = self._flat_inputs(obs['maps'], obs['lidar'], obs['global'], obs['agent'])
+            maps = obs['maps'].reshape((E * N,) + obs['maps'].shape[2:])
+            lidar = obs['lidar'].reshape(E * N, -1)
             mean, log_std = self.actor.apply(runner.actor.params, maps, lidar)
             action = mean + jnp.exp(log_std) * jax.random.normal(k_act, mean.shape)
             logp = gaussian_log_prob(action, mean, log_std)
-            value = self.critic.apply(runner.critic.params, maps, lidar, g, agent)
+            value = self.critic.apply(runner.critic.params, obs['maps'], obs['lidar'], obs['global'], obs['agent'])
             next_obs, env_state, reward, done, info = env_step(
                 jax.random.split(k_env, E), env_state, action.reshape(E, N, A), env_params)
             transition = Transition(
                 obs['maps'], obs['lidar'], obs['global'], obs['agent'], action.reshape(E, N, A),
-                logp.reshape(E, N), value.reshape(E, N), reward, done)
+                logp.reshape(E, N), value, reward, done)
             info = dict(info, done=done)
             return (env_state, next_obs, key), (transition, info)
 
@@ -214,7 +207,12 @@ class MAPPO:
 
     def _actor_loss(self, params, batch):
         cfg = self.cfg
-        maps, lidar, action, old_logp, adv = batch['maps'], batch['lidar'], batch['action'], batch['logp'], batch['adv']
+        # flatten environment steps and robots
+        maps = batch['maps'].reshape((-1,) + batch['maps'].shape[2:])
+        lidar = batch['lidar'].reshape((-1,) + batch['lidar'].shape[2:])
+        action = batch['action'].reshape((-1,) + batch['action'].shape[2:])
+        old_logp = batch['logp'].reshape(-1)
+        adv = batch['adv'].reshape(-1)
         mean, log_std = self.actor.apply(params, maps, lidar)
         logp = gaussian_log_prob(action, mean, log_std)
         log_ratio = logp - old_logp
@@ -241,33 +239,29 @@ class MAPPO:
 
     def _update(self, runner: RunnerState, env_params: EnvParams):
         cfg = self.cfg
-        N = self.env_cfg.num_agents
 
         # Collect experience
         runner, traj, infos = self._rollout(runner, env_params)
-        maps, lidar, g, agent = self._flat_inputs(
-            runner.obs['maps'], runner.obs['lidar'], runner.obs['global'], runner.obs['agent'])
-        last_value = self.critic.apply(runner.critic.params, maps, lidar, g, agent).reshape(cfg.num_envs, N)
+        obs = runner.obs
+        last_value = self.critic.apply(runner.critic.params, obs['maps'], obs['lidar'], obs['global'], obs['agent'])
 
         # Advantages and value targets
         advantages, targets = self._gae(traj, last_value, runner.value_norm)
         value_norm = runner.value_norm.update(targets) if cfg.use_value_norm else runner.value_norm
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-        # Flatten time, environments and robots. The global maps are stored
-        # once per environment and gathered per sample.
-        B = cfg.num_steps * cfg.num_envs * N
-        flat = lambda x: x.reshape((B,) + x.shape[3:])
-        data = dict(maps=flat(traj.maps), lidar=flat(traj.lidar), agent=flat(traj.agent),
-                    action=flat(traj.action), logp=flat(traj.logp), value=flat(traj.value),
-                    adv=flat(advantages), target=flat(targets))
-        global_maps = traj.global_maps.reshape((-1,) + traj.global_maps.shape[2:])
-        mb_size = B // cfg.num_minibatches
+        # Flatten time and environments. Minibatches are sampled over
+        # environment steps, with all robots of each step.
+        M = cfg.num_steps * cfg.num_envs
+        flat = lambda x: x.reshape((M,) + x.shape[2:])
+        data = dict(maps=flat(traj.maps), lidar=flat(traj.lidar), global_maps=flat(traj.global_maps),
+                    agent=flat(traj.agent), action=flat(traj.action), logp=flat(traj.logp),
+                    value=flat(traj.value), adv=flat(advantages), target=flat(targets))
+        num_mb, mb_size = self.num_minibatches, self.minibatch_env_steps
 
         def minibatch_step(carry, idx):
             actor, critic = carry
             batch = {k: jnp.take(x, idx, axis=0) for k, x in data.items()}
-            batch['global_maps'] = jnp.take(global_maps, idx // N, axis=0)
             actor_grads, actor_metrics = jax.grad(self._actor_loss, has_aux=True)(actor.params, batch)
             critic_grads, critic_metrics = jax.grad(self._critic_loss, has_aux=True)(critic.params, value_norm, batch)
             actor = actor.apply_gradients(grads=actor_grads)
@@ -276,7 +270,7 @@ class MAPPO:
 
         def epoch_step(carry, key):
             actor, critic = carry
-            perm = jax.random.permutation(key, B).reshape(cfg.num_minibatches, mb_size)
+            perm = jax.random.permutation(key, M)[:num_mb * mb_size].reshape(num_mb, mb_size)
             return jax.lax.scan(minibatch_step, (actor, critic), perm)
 
         key, k_epochs = jax.random.split(runner.key)
@@ -341,10 +335,8 @@ def load_checkpoint(path, env_cfg: EnvConfig = None, train_cfg: TrainConfig = No
     env_cfg = env_cfg or EnvConfig.from_dict(config['env'])
     train_cfg = train_cfg or TrainConfig.from_dict(config['train'])
     actor, critic = make_networks(env_cfg, train_cfg)
-    x = dummy_inputs(env_cfg)
-    key = jax.random.PRNGKey(0)
-    target = {'actor': actor.init(key, x['maps'], x['lidar']),
-              'critic': critic.init(key, x['maps'], x['lidar'], x['global_maps'], x['agent']),
+    actor_params, critic_params = init_params(env_cfg, actor, critic, jax.random.PRNGKey(0))
+    target = {'actor': actor_params, 'critic': critic_params,
               'value_norm': {'mean': jnp.zeros(()), 'mean_sq': jnp.zeros(()), 'debias': jnp.zeros(())}}
     with open(os.path.join(path, 'params.msgpack'), 'rb') as f:
         params = flax.serialization.from_bytes(target, f.read())

@@ -78,7 +78,7 @@ Install: the multi-agent code does not use the single-agent code (`rlm/`) or its
 
 Train and evaluate:
 * Train with 4 robots: `python train_marl.py --logdir experiments/marl_4 --num_agents 4`
-* Use as many parallel environments as the GPU memory allows, e.g. `--num_envs 1024`. The rollout stores `num_envs * num_steps * num_agents` uint8 observations of 32x32x16 bytes, plus one 64x64x4 global map per environment and step.
+* Use as many parallel environments as the GPU memory allows (see `benchmark_marl.py`). The rollout stores `num_envs * num_steps * num_agents` uint8 observations of 32x32x16 bytes, plus one 64x64x4 global map per environment and step: with 4 robots and `--num_steps 128`, an update needs about 2.5 GB + 10.6 MB per environment (about 5 GB for 256 environments, 13 GB for 1024). Gradients are computed on minibatches of `--minibatch_size` agent samples (default 4096), independent of `--num_envs`.
 * `--total_steps` counts environment steps (each one is `num_agents` agent steps). Every field of `marl/config.py` is a command line argument.
 * Logs are written to `<logdir>/progress.csv`, checkpoints to `<logdir>/checkpoint`.
 * Evaluate on the mowing evaluation maps: `python eval_marl.py --load experiments/marl_4/checkpoint` (add `--num_agents 8` to change the number of robots, `--maps "maps/giant_mowing_*.png"` for other maps). Writes `metrics.csv` (coverage, time to 90/95/99% coverage, overlap, collisions) and an image of the robot paths per episode to `<checkpoint>/eval`.

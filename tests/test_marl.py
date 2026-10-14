@@ -219,7 +219,7 @@ def test_curriculum():
 def test_mappo_update():
     from marl.mappo import MAPPO
     env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8)
-    train_cfg = TrainConfig(num_envs=2, num_steps=8, total_steps=64, num_minibatches=2, update_epochs=2, hidden_dims=32)
+    train_cfg = TrainConfig(num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, update_epochs=2, hidden_dims=32)
     bank = build_bank([empty_map(), empty_map(48)], env_cfg)
     params = EnvParams(bank=bank, map_logits=jnp.zeros(2), goal_coverage=jnp.float32(0.9))
     algo = MAPPO(env_cfg, train_cfg)

@@ -4,6 +4,8 @@ Actor and centralized critic in Flax (channels last, NHWC).
 The actor only sees the robot's own egocentric observation (decentralized
 execution). The critic additionally sees the global state of the environment
 and the robot's own state, i.e. an agent-specific global state as in MAPPO.
+The critic takes all robots of an environment at once, so that the global
+maps are only encoded once per environment.
 Parameters are shared between robots.
 """
 from typing import Sequence
@@ -95,43 +97,38 @@ class Actor(nn.Module):
         return mean, jnp.broadcast_to(log_std, mean.shape)
 
 
-def own_position_map(agent_pos, size, radius):
-    """
-    Map (size x size) of the robot's own position for the critic.
-    agent_pos: (..., 2) position normalized by the canvas size
-    radius: normalized radius
-    """
-    centers = (jnp.arange(size, dtype=jnp.float32) + 0.5) / size
-    d2 = (centers[:, None] - agent_pos[..., 0, None, None]) ** 2 + \
-         (centers[None, :] - agent_pos[..., 1, None, None]) ** 2
-    return (d2 <= radius ** 2).astype(jnp.float32)[..., None]
-
-
 class Critic(nn.Module):
     """
-    Centralized value function V(s, i) for robot i.
+    Centralized value function V(s, i) for each robot i of an environment.
 
-    Inputs: robot i's egocentric observation (maps, lidar), the global maps
-    of the environment, and robot i's state (agent features). The robot's
-    position is also drawn as an extra channel of the global maps.
+    Inputs (one row per environment, all N robots together):
+      maps, lidar: (B, N, ...) egocentric observation of each robot
+      global_maps: (B, G, G, C) global maps of the environment
+      agent:       (B, N, F) state of each robot (position, heading, ...)
+    Returns (B, N) values.
+
+    The global maps are encoded once per environment and the features are
+    shared by its robots, the robot specific part comes from the robot's own
+    observation and state (agent-specific global state).
     """
     num_maps: int
-    own_radius: float
     hidden_dims: int = 256
     grouped: bool = True
     global_convs: Sequence[int] = (32, 64, 64)
 
     @nn.compact
     def __call__(self, maps, lidar, global_maps, agent):
-        ego = MultiScaleEncoder(self.num_maps, self.hidden_dims, self.grouped)(maps, lidar)
+        B, N = maps.shape[:2]
+        ego = MultiScaleEncoder(self.num_maps, self.hidden_dims, self.grouped)(
+            maps.reshape((B * N,) + maps.shape[2:]), lidar.reshape(B * N, -1))
+        ego = ego.reshape(B, N, -1)
         g = global_maps.astype(jnp.float32) / 255
-        own = own_position_map(agent[..., :2], g.shape[-2], self.own_radius)
-        g = jnp.concatenate([g, own], axis=-1)
         for features, kernel in zip(self.global_convs, [(4, 4), (4, 4), (3, 3)]):
             g = nn.relu(nn.Conv(features, kernel, strides=2, padding='SAME',
                                 kernel_init=nn.initializers.orthogonal(np.sqrt(2)))(g))
-        g = g.reshape(g.shape[:-3] + (-1,))
+        g = g.reshape(B, -1)
         g = nn.relu(_dense(self.hidden_dims)(g))
+        g = jnp.broadcast_to(g[:, None, :], (B, N, g.shape[-1]))
         x = jnp.concatenate([ego, g, agent], axis=-1)
         x = nn.relu(_dense(self.hidden_dims)(x))
         x = nn.relu(_dense(self.hidden_dims)(x))

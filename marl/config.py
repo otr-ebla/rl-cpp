@@ -178,7 +178,10 @@ class TrainConfig:
     """
     MAPPO hyperparameters.
 
-    The number of agent samples per update is num_envs * num_steps * num_agents.
+    The number of agent samples per update is num_envs * num_steps * num_agents,
+    they are split into minibatches of minibatch_size agent samples (all
+    robots of minibatch_size / num_agents environment steps), so the memory
+    used by the gradient computation does not depend on num_envs.
     """
     seed: int = 0
     num_envs: int = 256
@@ -194,7 +197,7 @@ class TrainConfig:
     ent_coef: float = 0.0
     max_grad_norm: float = 10.0
     update_epochs: int = 5
-    num_minibatches: int = 4
+    minibatch_size: int = 4096
     huber_delta: float = 10.0
     use_value_norm: bool = True
     hidden_dims: int = 256
