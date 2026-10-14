@@ -274,22 +274,29 @@ class MAPPO:
         num_mb, mb_size = self.num_minibatches, self.minibatch_env_steps
 
         def minibatch_step(carry, idx):
-            actor, critic = carry
+            actor, critic, stop = carry
             batch = {k: jnp.take(x, idx, axis=0) for k, x in data.items()}
             actor_grads, actor_metrics = jax.grad(self._actor_loss, has_aux=True)(actor.params, batch)
             critic_grads, critic_metrics = jax.grad(self._critic_loss, has_aux=True)(critic.params, value_norm, batch)
-            actor = actor.apply_gradients(grads=actor_grads)
+            # KL early stopping: once the policy moved too far from the one
+            # that collected the data, skip the remaining actor updates of
+            # this iteration (the critic keeps training)
+            if cfg.target_kl > 0:
+                stop = stop | (actor_metrics['approx_kl'] > 1.5 * cfg.target_kl)
+            new_actor = actor.apply_gradients(grads=actor_grads)
+            actor = jax.tree_util.tree_map(lambda old, new: jnp.where(stop, old, new), actor, new_actor)
             critic = critic.apply_gradients(grads=critic_grads)
-            return (actor, critic), {**actor_metrics, **critic_metrics}
+            metrics = {**actor_metrics, **critic_metrics, 'actor_updates': 1.0 - stop.astype(jnp.float32)}
+            return (actor, critic, stop), metrics
 
         def epoch_step(carry, key):
-            actor, critic = carry
             perm = jax.random.permutation(key, M)[:num_mb * mb_size].reshape(num_mb, mb_size)
-            return jax.lax.scan(minibatch_step, (actor, critic), perm)
+            return jax.lax.scan(minibatch_step, carry, perm)
 
         key, k_epochs = jax.random.split(runner.key)
-        (actor, critic), metrics = jax.lax.scan(
-            epoch_step, (runner.actor, runner.critic), jax.random.split(k_epochs, cfg.update_epochs))
+        (actor, critic, _), metrics = jax.lax.scan(
+            epoch_step, (runner.actor, runner.critic, jnp.zeros((), dtype=bool)),
+            jax.random.split(k_epochs, cfg.update_epochs))
         metrics = jax.tree_util.tree_map(jnp.mean, metrics)
         metrics['reward'] = traj.reward.mean()
         metrics['value_mean'], metrics['value_std'] = value_norm.stats()
@@ -441,7 +448,8 @@ def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', c
                       f"sps {row['sps']:,.0f}  level {row['level']}  episodes {n_done}  "
                       f"success {row['success']:.2f}  coverage {row['coverage']:.3f}  "
                       f"ep_len {row['ep_length']:.0f}  reward {metrics['reward']:.3f}  "
-                      f"kl {metrics['approx_kl']:.4f}  entropy {metrics['entropy']:.3f}", flush=True)
+                      f"kl {metrics['approx_kl']:.4f}  actor_updates {metrics['actor_updates']:.2f}  "
+                      f"entropy {metrics['entropy']:.3f}", flush=True)
 
         if update % train_cfg.save_every == 0 or update == algo.num_updates:
             save_checkpoint(os.path.join(logdir, 'checkpoint'), runner, env_cfg, train_cfg,

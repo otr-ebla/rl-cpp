@@ -86,6 +86,7 @@ Train and evaluate:
 Notes:
 * Not implemented in the multi-agent version: stacked observations, action observations, acceleration limits, action delay, the frontier and global total variation rewards (all off by default for mowing), and the exploration task.
 * Truncated episodes (time limit or no new coverage) are treated as terminal in the advantage estimation.
+* PPO uses KL early stopping: within an update, the actor stops training once the approximate KL divergence to the data-collecting policy exceeds 1.5 x `--target_kl` (default 0.02, 0 disables it); the fraction of minibatches with an actor step is logged as `actor_updates`.
 * The per-scale (grouped) convolutions are implemented with a block-diagonal kernel, since grouped convolutions are very slow to differentiate on some XLA backends.
 * On CPU, XLA runs convolutions inside the training loop slowly, so CPU training is only useful for debugging and tests.
 

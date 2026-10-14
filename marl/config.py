@@ -182,6 +182,8 @@ class TrainConfig:
     they are split into minibatches of minibatch_size agent samples (all
     robots of minibatch_size / num_agents environment steps), so the memory
     used by the gradient computation does not depend on num_envs.
+    The actor updates of an iteration stop once the approximate KL divergence
+    to the policy that collected the data exceeds 1.5 * target_kl (0: off).
     """
     seed: int = 0
     num_envs: int = 256
@@ -196,8 +198,9 @@ class TrainConfig:
     value_clip_eps: float = 0.2
     ent_coef: float = 0.0
     max_grad_norm: float = 10.0
-    update_epochs: int = 5
-    minibatch_size: int = 4096
+    update_epochs: int = 4
+    minibatch_size: int = 8192
+    target_kl: float = 0.02
     huber_delta: float = 10.0
     use_value_norm: bool = True
     hidden_dims: int = 256
