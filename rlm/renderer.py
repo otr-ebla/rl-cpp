@@ -51,7 +51,10 @@ class PygameRenderer:
       'full':    full map + multi-scale coverage/obstacle/frontier observations
 
     Keys:
-      c:       toggle the multi-scale crops (centered on and rotated with the agent)
+      c:       toggle the multi-scale crops (centered on and rotated with the agent),
+               also outlined in the observation panels
+      m:       toggle between the composite observation panels and each scale
+               shown separately, as received by the network ('full' mode only)
       s:       cycle simulation speed x1 (real time), x2, x4, x8, max
       q/Esc:   quit
     """
@@ -61,6 +64,7 @@ class PygameRenderer:
         self.env = env
         self.mode = mode
         self.show_crops = False
+        self.show_scales = False
         self.speed_idx = 0
         self.next_step_time = None
         self.last_draw_time = 0
@@ -86,6 +90,7 @@ class PygameRenderer:
                 'obstacles': pygame.Rect(x2, title_h, cell, cell),
                 'frontier': pygame.Rect(x1, y2, cell, cell)}
             self.hud_rect = pygame.Rect(x2, y2, cell, cell)
+            self.scales_rect = pygame.Rect(x1, title_h, 2 * cell + margin, map_side)
             size = (x2 + cell + margin, title_h + map_side + margin)
 
         pygame.init()
@@ -145,6 +150,8 @@ class PygameRenderer:
                     raise SystemExit
                 elif event.key == pygame.K_c:
                     self.show_crops = not self.show_crops
+                elif event.key == pygame.K_m and self.mode == 'full':
+                    self.show_scales = not self.show_scales
                 elif event.key == pygame.K_s:
                     self.speed_idx = (self.speed_idx + 1) % len(SPEEDS)
                     self.next_step_time = None
@@ -155,7 +162,10 @@ class PygameRenderer:
         self.screen.fill(WHITE)
         self._draw_map()
         if self.mode == 'full':
-            self._draw_observations()
+            if self.show_scales:
+                self._draw_scales()
+            else:
+                self._draw_observations()
             coverage = round(100 * env.coverage_in_percent)
             overlap = round(100 * env.overlap_in_percent)
             title = self.title_font.render(
@@ -252,30 +262,85 @@ class PygameRenderer:
             pygame.draw.polygon(self.screen, color, pts, 2)
             pygame.draw.line(self.screen, color, pts[1], pts[2], 5)
 
+    def _observation_kinds(self):
+        kinds = [('coverage', 'coverage'), ('obstacles', 'obstacle')]
+        if self.env.frontier_observation:
+            kinds.append(('frontier', 'frontier'))
+        return kinds
+
+    @staticmethod
+    def _colorize(kind, values):
+        """
+        Converts observation values to RGB in [0, 1], with the same colors as
+        the matplotlib renderer.
+        """
+        img = np.ones(values.shape + (3,), dtype=np.float32)
+        if kind == 'coverage':
+            img[:, :, 0] = np.clip(1 - 1.5*values, 0, 1)
+            img[:, :, 1] = np.clip(2 - 1.5*values, 0, 1)
+            img[:, :, 2] = img[:, :, 0]
+        elif kind == 'obstacles':
+            img[:] = np.clip(1 - values, 0, 1)[:, :, None]
+        else: # kind == 'frontier'
+            img[:, :, 1] = np.clip(1 - values, 0, 1)
+        return img
+
     def _draw_observations(self):
+        ob = self.env._get_latest_observation()
+        for kind, name in self._observation_kinds():
+            rect = self.obs_rects[kind]
+            values = self._multi_scale_image(ob[kind], rect.width)
+            self._blit_image(self._colorize(kind, values), rect)
+            if self.show_crops:
+                self._draw_scale_outlines(rect)
+            self._draw_label(f'{name} observation', rect)
+
+    def _draw_scale_outlines(self, rect):
+        """
+        Outlines the region of each scale in a composite observation panel,
+        with the same colors as the crops in the full map. The thick edge is
+        the forward direction of the agent.
+        """
+        env = self.env
+        side = rect.width
+        for n in range(env.num_maps):
+            size = int(round(side / env.scale_factor ** (env.num_maps - 1 - n)))
+            if size < 2:
+                continue
+            i1 = side // 2 - size // 2
+            box = pygame.Rect(rect.x + i1, rect.y + side - i1 - size, size, size)
+            color = CROP_COLORS[n % len(CROP_COLORS)]
+            pygame.draw.rect(self.screen, color, box, 1)
+            pygame.draw.line(self.screen, color, box.topleft, (box.right - 1, box.top), 3)
+
+    def _draw_scales(self):
+        """
+        Shows each scale of each multi-scale observation separately, i.e. the
+        input_size x input_size maps as received by the network. Rows are
+        observation types and columns are scales, from finest to coarsest.
+        """
         env = self.env
         ob = env._get_latest_observation()
-        side = self.obs_rects['coverage'].width
-
-        coverage = self._multi_scale_image(ob['coverage'], side)
-        img = np.empty((side, side, 3), dtype=np.float32)
-        img[:, :, 0] = np.clip(1 - 1.5*coverage, 0, 1)
-        img[:, :, 1] = np.clip(2 - 1.5*coverage, 0, 1)
-        img[:, :, 2] = img[:, :, 0]
-        self._blit_image(img, self.obs_rects['coverage'])
-        self._draw_label('coverage observation', self.obs_rects['coverage'])
-
-        obstacles = self._multi_scale_image(ob['obstacles'], side)
-        img = np.repeat(np.clip(1 - obstacles, 0, 1)[:, :, None], 3, axis=2)
-        self._blit_image(img, self.obs_rects['obstacles'])
-        self._draw_label('obstacle observation', self.obs_rects['obstacles'])
-
-        if env.frontier_observation:
-            frontier = self._multi_scale_image(ob['frontier'], side)
-            img = np.ones((side, side, 3), dtype=np.float32)
-            img[:, :, 1] = np.clip(1 - frontier, 0, 1)
-            self._blit_image(img, self.obs_rects['frontier'])
-            self._draw_label('frontier observation', self.obs_rects['frontier'])
+        kinds = self._observation_kinds()
+        area = self.scales_rect
+        gap, header_h, hud_h = 8, 22, 70
+        tile = int(min((area.width - (env.num_maps - 1) * gap) / env.num_maps,
+                       (area.height - header_h - hud_h - (len(kinds) - 1) * gap) / len(kinds)))
+        for n in range(env.num_maps):
+            x = area.x + n * (tile + gap)
+            color = CROP_COLORS[n % len(CROP_COLORS)]
+            extent_m = env.input_size * env.scale_factor ** n * env.meters_per_pixel
+            header = self.hud_font.render(f'scale {n + 1}: {extent_m:g} m', True, color)
+            self.screen.blit(header, (x, area.y))
+            for row, (kind, name) in enumerate(kinds):
+                rect = pygame.Rect(x, area.y + header_h + row * (tile + gap), tile, tile)
+                values = cv2.resize(ob[kind][n].astype(np.float32), (tile,)*2, interpolation=cv2.INTER_NEAREST)
+                self._blit_image(self._colorize(kind, values), rect)
+                if self.show_crops:
+                    pygame.draw.rect(self.screen, color, rect.inflate(2, 2), 2)
+                    pygame.draw.line(self.screen, color, rect.topleft, (rect.right - 1, rect.top), 4)
+                if n == 0:
+                    self._draw_label(name, rect)
 
     def _multi_scale_image(self, ms_map, side):
         """
@@ -306,9 +371,9 @@ class PygameRenderer:
         self.screen.blit(label, label.get_rect(center=box.center))
 
     def _draw_hud(self):
-        lines = [f'speed {self._speed_str()}',
+        lines = [f'speed {self._speed_str()}  crops {"on" if self.show_crops else "off"}',
                  '[s] speed  [c] crops',
-                 f'crops {"on" if self.show_crops else "off"}  [q] quit']
+                 '[m] separate scales  [q] quit']
         if self.hud_rect is not None:
             x, y = self.hud_rect.x + 10, self.hud_rect.bottom - 10 - len(lines) * 18
             for line in lines:

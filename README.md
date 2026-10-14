@@ -31,7 +31,8 @@ Check how the trained agent performs:
 * Render: `python eval.py --load my-experiment` (add `--render_mode full` to also show the multi-scale observations)
 
 Rendering uses pygame. Keyboard controls in the render window:
-* `c`: show/hide the multi-scale map crops, centered on and rotated with the agent (the thick edge is the forward direction)
+* `c`: show/hide the multi-scale map crops, centered on and rotated with the agent (the thick edge is the forward direction), also outlined in the observation panels
+* `m`: switch the observation panels between the composite view and each scale shown separately, as received by the network (with `--render_mode full`)
 * `s`: cycle the simulation speed: x1 (real time), x2, x4, x8, max
 * `q`/`Esc`: quit
 
