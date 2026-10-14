@@ -69,10 +69,12 @@ The `marl` package extends the mowing task to N robots, trained with MAPPO (cent
 * Reward: the single-agent reward per robot, where the area term mixes the robot's own newly covered area and the team's newly covered area divided by N (`--team_reward_weight`, 0 = individual, 1 = team). Area covered by k robots in the same step is split 1/k between them. The incremental total variation term is computed on each robot's own contribution.
 * Maps of different sizes are placed on a fixed canvas (`--canvas_size`, 320 pixels for the training maps). The training levels follow `MowerEnv._set_level` (fixed training maps, then random maps); random maps are drawn from a bank that is regenerated periodically.
 
-Install (separate environment, Python >= 3.11):
-* `conda create -n rlm-marl python=3.11`
-* `conda activate rlm-marl`
-* `pip install -r requirements-marl.txt` (`jax[cuda12]` for NVIDIA GPUs; use plain `jax` for CPU only)
+Install: the multi-agent code does not use the single-agent code (`rlm/`) or its old dependencies (Python 3.9, gym, torch), so it has its own environment with a modern Python (3.11-3.13 tested) and `requirements-marl.txt`. On Ubuntu with an NVIDIA GPU:
+* `python3 -m venv .venv-marl && source .venv-marl/bin/activate`
+* `pip install -U pip && pip install -r requirements-marl.txt`
+* Check that JAX sees the GPU: `python -c "import jax; print(jax.devices())"` should list a `CudaDevice`. The `jax[cuda12]` wheels include CUDA and cuDNN, only the NVIDIA driver is needed (driver >= 525 for CUDA 12; with a driver >= 580 `jax[cuda13]` can be used instead).
+* Run the tests: `pytest` (tests of the single-agent code are skipped when their dependencies are not installed)
+* Measure the speed on the GPU and choose `--num_envs`: `python benchmark_marl.py --num_envs 256 1024 4096`
 
 Train and evaluate:
 * Train with 4 robots: `python train_marl.py --logdir experiments/marl_4 --num_agents 4`
@@ -85,7 +87,7 @@ Notes:
 * Not implemented in the multi-agent version: stacked observations, action observations, acceleration limits, action delay, the frontier and global total variation rewards (all off by default for mowing), and the exploration task.
 * Truncated episodes (time limit or no new coverage) are treated as terminal in the advantage estimation.
 * The per-scale (grouped) convolutions are implemented with a block-diagonal kernel, since grouped convolutions are very slow to differentiate on some XLA backends.
-* Run the tests with `pytest tests/test_marl.py` (CPU is enough). On CPU, XLA runs convolutions inside the training loop slowly, so CPU training is only useful for debugging.
+* On CPU, XLA runs convolutions inside the training loop slowly, so CPU training is only useful for debugging and tests.
 
 ## Cite
 

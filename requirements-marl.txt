@@ -1,6 +1,10 @@
-# Multi-agent JAX code (marl/, train_marl.py, eval_marl.py), Python >= 3.11
-# Tested with jax 0.11.2, flax 0.12.10, optax 0.2.8, scipy 1.18.1, numpy 2.5.3, pillow 12.3.0
-# For NVIDIA GPUs install jax[cuda12] (or jax[cuda13]), for CPU only: jax
+# Multi-agent JAX code (marl/, train_marl.py, eval_marl.py, benchmark_marl.py)
+# Independent of requirements.txt (single-agent code, Python 3.9).
+# Tested on CPU with:
+#   Python 3.11, jax 0.4.35, flax 0.10.0, optax 0.2.3 (minimum versions)
+#   Python 3.12 and 3.13, jax 0.11.2, flax 0.12.10, optax 0.2.8
+# jax[cuda12] needs an NVIDIA driver >= 525 (CUDA and cuDNN come with the wheels),
+# use jax[cuda13] with a driver >= 580, or plain jax for CPU only.
 jax[cuda12]>=0.4.35
 flax>=0.10.0
 optax>=0.2.3
