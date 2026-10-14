@@ -36,6 +36,10 @@ Rendering uses pygame. Keyboard controls in the render window:
 * `s`: cycle the simulation speed: x1 (real time), x2, x4, x8, max
 * `q`/`Esc`: quit
 
+Evaluate on maps larger than the region covered by the largest scale of the multi-scale maps (76.8 m with the default parameters):
+* Generate maps: `python make_giant_maps.py --task exploration --method tile --size 108 --num 5` (`--method tile` is a mosaic of the evaluation maps, `--method random` uses the generator of the training maps)
+* Evaluate: `python eval.py --load my-experiment --maps "maps/giant_exploration_tile_*.png" --render_mode full`
+
 Run full quantitative evaluation and show the resulting paths and metrics:
 * Run eval: `python eval.py --load my-experiment --verbose --no-render --metrics_dir metrics`
 * Show path: `python show_path.py --metrics_dir my-experiment/metrics --type eval --episode 1`

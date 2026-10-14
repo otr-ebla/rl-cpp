@@ -838,3 +838,40 @@ def test_action_observation():
             if done:
                 break
         env.close()
+
+def test_relative_map_cache():
+    """
+    Test that the cached downsampled maps used for the observations give the
+    same observations as downsampling the full maps in every step.
+    """
+    def recompute(env):
+        if env.overlap_observation:
+            cov_map = np.tanh(0.2 * env.overlap_map)
+        else:
+            cov_map = env.coverage_map
+        return {
+            'coverage': env._get_multi_scale_map(cov_map, pad_value=env.coverage_pad_value),
+            'obstacles': env._get_multi_scale_map(env.known_obstacle_map, pad_value=env.obstacle_pad_value),
+            'frontier': env._get_multi_scale_map(env.frontier_map, pad_value=0, ceil=True)}
+
+    np.random.seed(0)
+    settings = [
+        {'exploration': False, 'overlap_observation': True},
+        {'exploration': True, 'overlap_observation': False},
+        {'exploration': True, 'overlap_observation': True}]
+    for kwargs in settings:
+        for mower in [SpiralMower, RandomMower]:
+            env = MowerEnv(eval=True, frontier_observation=True, **kwargs)
+            model = mower(env)
+            for _ in range(3): # map sizes are both multiples and non-multiples of the scales
+                obs = env.reset()
+                for _ in range(60):
+                    action, _ = model.predict(obs, deterministic=True)
+                    obs, _, done, _ = env.step(action)
+                    latest = env._get_latest_observation()
+                    oracle = recompute(env)
+                    for key in oracle:
+                        assert np.allclose(latest[key], oracle[key], rtol=1e-6, atol=1e-6), (key, env.size_p)
+                    if done:
+                        break
+            env.close()

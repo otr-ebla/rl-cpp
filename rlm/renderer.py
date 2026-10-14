@@ -196,15 +196,27 @@ class PygameRenderer:
         # Colors are looked up from a table indexed by the quantized coverage,
         # with three extra entries for unknown obstacles, known obstacles and
         # frontier points (in increasing priority)
-        label = (255 * env.coverage_map + 0.5).astype(np.uint16)
-        np.putmask(label, env.unknown_obstacle_map > 0, 256)
-        np.putmask(label, env.known_obstacle_map > 0, 257)
-        np.putmask(label, env.frontier_map > 0, 258)
+        coverage = env.coverage_map
+        masks = [env.unknown_obstacle_map, env.known_obstacle_map, env.frontier_map]
+        center = np.flip(env.position_p)
+        radius = env.mower_radius * env.pixels_per_meter
+        if env.size_p > rect.width:
+            # For maps larger than the panel, downsample first: coverage is
+            # averaged, and obstacles/frontier are kept if present anywhere in
+            # a pixel so that thin structures do not disappear
+            size = (rect.width,)*2
+            coverage = cv2.resize(coverage, size, interpolation=cv2.INTER_AREA)
+            masks = [cv2.resize(m, size, interpolation=cv2.INTER_AREA) for m in masks]
+            center = center * k
+            radius = max(1, radius * k)
+        label = (255 * coverage + 0.5).astype(np.uint16)
+        for value, mask in zip([256, 257, 258], masks):
+            np.putmask(label, mask > 0, value)
         img = np.take(MAP_COLORS, label, axis=0)
         cv2.circle(
             img,
-            center=np.flip(env.position_p).astype(np.int32),
-            radius=int(env.mower_radius * env.pixels_per_meter),
+            center=center.astype(np.int32),
+            radius=int(radius),
             color=(255, 0, 0),
             thickness=cv2.FILLED,
             lineType=env.line_type)

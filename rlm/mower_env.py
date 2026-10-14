@@ -486,17 +486,20 @@ class MowerEnv(gym.Env):
         if newly_visited_sum > 0:
             self.non_new_steps = 0
 
+        # Mark the region where the maps may have changed in this step, i.e.
+        # the local neighborhood and the detected obstacles within lidar range
+        self.dirty_regions.append(self._get_local_neighborhood_indices(
+            self.old_position_m, self.position_m, max(radius_m, self.lidar_range)))
+
         # Update the observation
         n = self.elapsed_steps % self.stacks
         self.observation['lidar'][n] = lidar_obs
-        if self.overlap_observation:
-            cov_map = np.tanh(0.2 * self.overlap_map)
-        else:
-            cov_map = self.coverage_map
-        self.observation['coverage'][n] = self._get_multi_scale_map(cov_map, pad_value=self.coverage_pad_value)
-        self.observation['obstacles'][n] = self._get_multi_scale_map(self.known_obstacle_map, pad_value=self.obstacle_pad_value)
+        self.observation['coverage'][n] = self._get_coverage_observation()
+        self.observation['obstacles'][n] = self._get_multi_scale_map(
+            self.known_obstacle_map, pad_value=self.obstacle_pad_value, cache_key='obstacles')
         if self.frontier_observation:
-            self.observation['frontier'][n] = self._get_multi_scale_map(self.frontier_map, pad_value=0, ceil=True)
+            self.observation['frontier'][n] = self._get_multi_scale_map(
+                self.frontier_map, pad_value=0, ceil=True, cache_key='frontier')
         if self.action_observations > 0:
             m = self.elapsed_steps % self.action_observations
             self.observation['action'][m] = action
@@ -959,17 +962,20 @@ class MowerEnv(gym.Env):
         self.overlap_map = self.coverage_map.copy()
         self.frontier_map = self._compute_frontier_map(self.coverage_map, self.known_obstacle_map)
 
+        # Cache of downsampled maps for the observations, and the regions of
+        # the maps that have changed, see _get_downsampled_map
+        self.downsampled_cache = {}
+        self.dirty_regions = []
+
     def _initialize_observation(self, lidar_obs):
         self.observation = {}
         self.observation['lidar'] = np.tile(lidar_obs, (self.stacks, 1))
-        if self.overlap_observation:
-            cov_map = np.tanh(0.2 * self.overlap_map)
-        else:
-            cov_map = self.coverage_map
-        self.observation['coverage'] = np.tile(self._get_multi_scale_map(cov_map, pad_value=self.coverage_pad_value), (self.stacks, 1, 1, 1))
-        self.observation['obstacles'] = np.tile(self._get_multi_scale_map(self.known_obstacle_map, pad_value=self.obstacle_pad_value), (self.stacks, 1, 1, 1))
+        self.observation['coverage'] = np.tile(self._get_coverage_observation(), (self.stacks, 1, 1, 1))
+        self.observation['obstacles'] = np.tile(self._get_multi_scale_map(
+            self.known_obstacle_map, pad_value=self.obstacle_pad_value, cache_key='obstacles'), (self.stacks, 1, 1, 1))
         if self.frontier_observation:
-            self.observation['frontier'] = np.tile(self._get_multi_scale_map(self.frontier_map, pad_value=0, ceil=True), (self.stacks, 1, 1, 1))
+            self.observation['frontier'] = np.tile(self._get_multi_scale_map(
+                self.frontier_map, pad_value=0, ceil=True, cache_key='frontier'), (self.stacks, 1, 1, 1))
         if self.action_observations > 0:
             self.observation['action'] = np.zeros(self.observation_space['action'].shape, dtype=np.float32)
 
@@ -1359,7 +1365,15 @@ class MowerEnv(gym.Env):
         translation_matrix_2[1, 2] = self.input_size / 2
         return translation_matrix_2 @ rotation_matrix @ translation_matrix_1
 
-    def _get_relative_map(self, map, pad_value, scale=1, ceil=False, floor=False):
+    def _get_relative_map(self, map, pad_value, scale=1, ceil=False, floor=False, transform=None, cache_key=None):
+        """
+        Computes the egocentric map for one scale.
+
+        transform: optional elementwise function applied to the map before
+            downsampling (e.g. tanh for the overlap observation)
+        cache_key: if given, the downsampled map is cached and only updated in
+            the regions changed since the last call, see _get_downsampled_map
+        """
         assert not (ceil and floor), "_get_relative_map cannot do both ceil and floor"
         # note: since cv2.warAffine scales poorly with the input size, first
         # downsample to the correct resolution and then perform the warp
@@ -1368,7 +1382,13 @@ class MowerEnv(gym.Env):
         # https://stackoverflow.com/questions/57477478/opencv-warpaffine-ignores-flags-cv2-inter-area
         sc = min(scale, self.size_p)
         matrix = self._get_transform_matrix(sc)
-        relative_map = cv2.resize(map, (int(0.5 + self.size_p / sc),)*2, interpolation=cv2.INTER_AREA)
+        size_d = int(0.5 + self.size_p / sc)
+        if cache_key is not None and float(sc).is_integer() and size_d * int(sc) == self.size_p:
+            relative_map = self._get_downsampled_map(cache_key, map, int(sc), transform)
+        else:
+            if transform is not None:
+                map = transform(map)
+            relative_map = cv2.resize(map, (size_d,)*2, interpolation=cv2.INTER_AREA)
         relative_map = cv2.warpAffine(relative_map, M=matrix[:2], dsize=(self.input_size,)*2, borderValue=pad_value, flags=cv2.INTER_AREA)
         if ceil:
             relative_map = np.ceil(relative_map)
@@ -1376,11 +1396,45 @@ class MowerEnv(gym.Env):
             relative_map = np.floor(relative_map)
         return relative_map
 
-    def _get_multi_scale_map(self, map, pad_value, ceil=False, floor=False):
+    def _get_downsampled_map(self, cache_key, map, sc, transform):
+        """
+        Returns the map downsampled by the integer factor sc, which is an exact
+        average over sc x sc blocks. The result is cached, and only the blocks
+        overlapping the regions in self.dirty_regions that were added since the
+        last call are recomputed. This gives identical results to downsampling
+        the full map, but is much faster for large maps.
+        """
+        entry = self.downsampled_cache.get((cache_key, sc))
+        if entry is None:
+            regions = [(0, self.size_p, 0, self.size_p)]
+            down = np.empty((self.size_p // sc,)*2, dtype=float)
+        else:
+            down, num_processed = entry
+            regions = self.dirty_regions[num_processed:]
+        for i1, i2, j1, j2 in regions:
+            i1, j1 = i1 // sc, j1 // sc
+            i2, j2 = -(-i2 // sc), -(-j2 // sc)
+            if i2 <= i1 or j2 <= j1:
+                continue
+            block = map[i1*sc:i2*sc, j1*sc:j2*sc]
+            if transform is not None:
+                block = transform(block)
+            down[i1:i2, j1:j2] = cv2.resize(block, (j2 - j1, i2 - i1), interpolation=cv2.INTER_AREA)
+        self.downsampled_cache[(cache_key, sc)] = (down, len(self.dirty_regions))
+        return down
+
+    def _get_multi_scale_map(self, map, pad_value, ceil=False, floor=False, transform=None, cache_key=None):
         ms_map = np.zeros((self.num_maps, self.input_size, self.input_size))
         for n in range(self.num_maps):
-            ms_map[n] = self._get_relative_map(map, pad_value, self.scale_factor**n, ceil, floor)
+            ms_map[n] = self._get_relative_map(map, pad_value, self.scale_factor**n, ceil, floor, transform, cache_key)
         return ms_map
+
+    def _get_coverage_observation(self):
+        if self.overlap_observation:
+            return self._get_multi_scale_map(
+                self.overlap_map, pad_value=self.coverage_pad_value,
+                transform=lambda m: np.tanh(0.2 * m), cache_key='coverage')
+        return self._get_multi_scale_map(self.coverage_map, pad_value=self.coverage_pad_value, cache_key='coverage')
 
     def _get_image_from_multi_scale_map(self, ms_map):
         img = np.zeros((self.ms_reach_p, self.ms_reach_p), dtype=float)

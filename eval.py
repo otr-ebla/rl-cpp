@@ -37,6 +37,8 @@ def main():
     parser.add_argument('--save_path_interval', default=None, type=int)
     parser.add_argument('--verbose', default=False, action=BooleanOptionalAction)
     parser.add_argument('--metrics_dir', default=None, type=str)
+    parser.add_argument('--maps', default=None, type=str,
+                        help='glob pattern of evaluation maps, e.g. "maps/giant_*.png" (default: the evaluation maps of the task)')
     args = parser.parse_args()
     assert args.load is not None or args.random or args.spiral, \
         'Either --load, --random, or --spiral needs to be specified'
@@ -65,7 +67,10 @@ def main():
             args.exploration = env_args.exploration # override exploration argument
 
     # Get number of eval maps
-    if args.exploration:
+    if args.maps is not None:
+        eval_maps = sorted(glob.glob(args.maps))
+        assert len(eval_maps) > 0, f'No maps found for {args.maps}'
+    elif args.exploration:
         eval_maps = glob.glob('maps/eval_exploration*')
     else:
         eval_maps = glob.glob('maps/eval_mowing*')
@@ -96,6 +101,8 @@ def main():
             steering_limits_lin_vel=False,
             verbose=args.verbose,
             metrics_dir=args.metrics_dir)
+    if args.maps is not None:
+        env.eval_maps = eval_maps
     if args.random:
         model = RandomMower(env)
     elif args.spiral:
