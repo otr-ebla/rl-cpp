@@ -13,7 +13,11 @@ Keys:
   s / a        faster / slower (x1 = real time)
   n / p        next / previous map
   r            restart the episode on the same map
-  tab          select the next robot (observation panel)
+  tab          select the next robot (observation panel and crops)
+  c            show the multi-scale crops of the selected robot on the map
+               (thick edge = forward), also outlined in the observation panels
+  m            switch the observation panels between the composite view and
+               each scale shown separately, as received by the network
   l            toggle lidar rays
   t            toggle paths
   d            toggle deterministic / sampled actions
@@ -21,8 +25,9 @@ Keys:
 
 The map shows coverage (green, darker with more overlap), obstacles not yet
 detected (gray), detected obstacles (black) and the frontier (magenta). The
-panel on the right shows the multi-scale egocentric observation of the
-selected robot, as received by the policy (up = forward).
+panels on the right show the multi-scale egocentric observation of the
+selected robot (up = forward), with the same colors as the single-agent
+renderer (rlm/renderer.py).
 """
 import argparse
 import glob
@@ -51,6 +56,8 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (110, 110, 110)
 PANEL_BG = (240, 240, 240)
+LABEL_BG = (178, 178, 178)
+CROP_COLORS = [(230, 25, 75), (245, 130, 48), (0, 130, 200), (145, 30, 180), (70, 240, 240), (240, 50, 230)]
 
 # Map cell codes (see map_codes) -> colors
 CODE_COLORS = np.array([
@@ -140,15 +147,19 @@ class Viewer:
         self.show_lidar = True
         self.show_paths = True
         self.selected = 0
+        self.show_crops = False
+        self.show_scales = False
 
         margin = 10
         self.map_rect = pygame.Rect(margin, margin, args.window, args.window)
-        panel_w = 330
+        panel_w = 620
         self.panel_rect = pygame.Rect(self.map_rect.right + margin, margin, panel_w, args.window)
         pygame.init()
         self.screen = pygame.display.set_mode((self.panel_rect.right + margin, args.window + 2 * margin))
-        pygame.display.set_caption('MARL mowing - [space] pause [s/a] speed [n/p] map [tab] robot [q] quit')
+        pygame.display.set_caption('MARL mowing - [space] pause [s/a] speed [n/p] map [tab] robot '
+                                   '[c] crops [m] scales [q] quit')
         self.font = pygame.font.SysFont('dejavusansmono,menlo,couriernew,monospace', 14)
+        self.label_font = pygame.font.SysFont('dejavuserif,timesnewroman,times,serif', 14)
         self.big_font = pygame.font.SysFont('dejavusans,helvetica,arial', 20, bold=True)
         self.new_episode()
 
@@ -236,6 +247,10 @@ class Viewer:
                 self.new_episode()
             elif key == pygame.K_TAB:
                 self.selected = (self.selected + 1) % self.cfg.num_agents
+            elif key == pygame.K_c:
+                self.show_crops = not self.show_crops
+            elif key == pygame.K_m:
+                self.show_scales = not self.show_scales
             elif key == pygame.K_l:
                 self.show_lidar = not self.show_lidar
             elif key == pygame.K_t:
@@ -289,6 +304,10 @@ class Viewer:
             h = state.heading[n]
             tip = self.to_screen(pos[n, 0] + 2 * cfg.radius_p * np.cos(h), pos[n, 1] + 2 * cfg.radius_p * np.sin(h))
             pygame.draw.line(self.screen, BLACK, center, tip, 2)
+        if self.show_crops:
+            self.screen.set_clip(self.map_rect)
+            self.draw_crops(pos[self.selected], state.heading[self.selected])
+            self.screen.set_clip(None)
         pygame.draw.rect(self.screen, BLACK, self.map_rect, 1)
 
         if self.done:
@@ -324,36 +343,145 @@ class Viewer:
             y += 18
 
         # Egocentric multi-scale observation of the selected robot
-        y += 8
-        title = self.font.render(f'observation of robot {self.selected} (up = forward)', True, BLACK)
-        self.screen.blit(title, (r.x + 8, y))
-        y += 22
+        y += 4
+        hint = f'[c] crops {"on" if self.show_crops else "off"}   [m] {"composite" if self.show_scales else "separate scales"}'
+        self.screen.blit(self.font.render(f'observation of robot {self.selected} (up = forward)   {hint}', True, BLACK),
+                         (r.x + 8, y))
+        y += 24
+        area = pygame.Rect(r.x + 8, y, r.width - 16, r.bottom - y - 8)
         maps = np.asarray(self.sim.obs['maps'][self.selected]).astype(np.float32) / 255  # H x W x C
-        C = cfg.map_channels
-        cell = (r.width - 3 * 8) // 2
-        cell = min(cell, (r.bottom - y - 2 * 22) // 2)
-        for s in range(cfg.num_maps):
-            ch = maps[..., s * C:(s + 1) * C]
-            img = np.ones(ch.shape[:2] + (3,), dtype=np.float32)
-            img *= 1 - 0.6 * ch[..., :1] * np.array([1, 0.2, 1])        # coverage: green
-            if cfg.frontier_observation:
-                f = ch[..., 2:3]
-                img = img * (1 - f) + f * np.array([1, 0, 1])          # frontier: magenta
-            if cfg.robot_observation:
-                rb = ch[..., -1:]
-                img = img * (1 - rb) + rb * np.array([1, 0, 0])        # other robots: red
-            img *= 1 - ch[..., 1:2]                                    # obstacles: black
-            surf = pygame.surfarray.make_surface((255 * img).astype(np.uint8).transpose(1, 0, 2))
-            x0 = r.x + 8 + (s % 2) * (cell + 8)
-            y0 = y + (s // 2) * (cell + 22)
-            self.screen.blit(pygame.transform.scale(surf, (cell, cell)), (x0, y0))
-            pygame.draw.rect(self.screen, GRAY, (x0, y0, cell, cell), 1)
-            # robot at the center, pointing up
-            c = (x0 + cell / 2, y0 + cell / 2)
-            pygame.draw.circle(self.screen, ROBOT_COLORS[self.selected % len(ROBOT_COLORS)], c, 3)
-            label = self.font.render(f'scale {s} (x{cfg.scale_factor ** s})', True, BLACK)
-            self.screen.blit(label, (x0, y0 + cell + 2))
+        if self.show_scales:
+            self.draw_scales(maps, area)
+        else:
+            self.draw_composites(maps, area)
 
+    # -------------------------------------------------------- observations
+
+    def observation_kinds(self):
+        """(name, channel within a scale) of the observation maps"""
+        cfg = self.cfg
+        kinds = [('coverage', 0), ('obstacles', 1)]
+        if cfg.frontier_observation:
+            kinds.append(('frontier', 2))
+        if cfg.robot_observation:
+            kinds.append(('robots', cfg.map_channels - 1))
+        return kinds
+
+    @staticmethod
+    def colorize(kind, values):
+        """Observation values in [0, 1] -> RGB in [0, 1], colors as in rlm/renderer.py"""
+        img = np.ones(values.shape + (3,), dtype=np.float32)
+        if kind == 'coverage':
+            img[..., 0] = np.clip(1 - 1.5 * values, 0, 1)
+            img[..., 1] = np.clip(2 - 1.5 * values, 0, 1)
+            img[..., 2] = img[..., 0]
+        elif kind == 'obstacles':
+            img[:] = np.clip(1 - values, 0, 1)[..., None]
+        elif kind == 'frontier':
+            img[..., 1] = np.clip(1 - values, 0, 1)
+        else:  # other robots
+            img[..., 1] = np.clip(1 - values, 0, 1)
+            img[..., 2] = img[..., 1]
+        return img
+
+    def blit_image(self, img, rect):
+        """img: (rows, cols, 3) in [0, 1], row 0 at the top"""
+        surf = pygame.surfarray.make_surface((255 * img + 0.5).astype(np.uint8).transpose(1, 0, 2))
+        self.screen.blit(pygame.transform.scale(surf, rect.size), rect)
+        pygame.draw.rect(self.screen, BLACK, rect.inflate(2, 2), 1)
+
+    def draw_label(self, text, rect):
+        label = self.label_font.render(text, True, BLACK)
+        box = label.get_rect(topleft=(rect.x + 10, rect.y + 5)).inflate(8, 6)
+        pygame.draw.rect(self.screen, LABEL_BG, box)
+        self.screen.blit(label, label.get_rect(center=box.center))
+
+    def composite(self, scales, side):
+        """
+        Multi-scale image at display resolution: the coarsest scale fills the
+        panel and each finer scale is pasted at the center, at its true extent.
+        scales: (num_maps, H, W), finest first
+        """
+        cfg = self.cfg
+        img = np.zeros((side, side), dtype=np.float32)
+        H = cfg.input_size
+        for k in range(cfg.num_maps):
+            size = int(round(side / cfg.scale_factor ** k))
+            if size < 1:
+                break
+            idx = np.minimum((np.arange(size) + 0.5) * H / size, H - 1).astype(int)
+            i1 = side // 2 - size // 2
+            img[i1:i1 + size, i1:i1 + size] = scales[cfg.num_maps - 1 - k][np.ix_(idx, idx)]
+        return img
+
+    def draw_composites(self, maps, area):
+        cfg = self.cfg
+        kinds = self.observation_kinds()
+        gap = 10
+        side = int(min((area.width - gap) / 2, (area.height - gap) / 2))
+        C = cfg.map_channels
+        for i, (kind, c) in enumerate(kinds):
+            rect = pygame.Rect(area.x + (i % 2) * (side + gap), area.y + (i // 2) * (side + gap), side, side)
+            scales = np.stack([maps[..., s * C + c] for s in range(cfg.num_maps)])
+            self.blit_image(self.colorize(kind, self.composite(scales, side)), rect)
+            if self.show_crops:
+                self.draw_scale_outlines(rect)
+            pygame.draw.circle(self.screen, ROBOT_COLORS[self.selected % len(ROBOT_COLORS)], rect.center, 3)
+            self.draw_label(f'{kind} observation', rect)
+
+    def draw_scale_outlines(self, rect):
+        """Region of each scale in a composite panel, thick edge = forward"""
+        cfg = self.cfg
+        side = rect.width
+        for n in range(cfg.num_maps):
+            size = int(round(side / cfg.scale_factor ** (cfg.num_maps - 1 - n)))
+            if size < 2:
+                continue
+            i1 = side // 2 - size // 2
+            box = pygame.Rect(rect.x + i1, rect.y + i1, size, size)
+            color = CROP_COLORS[n % len(CROP_COLORS)]
+            pygame.draw.rect(self.screen, color, box, 1)
+            pygame.draw.line(self.screen, color, box.topleft, (box.right - 1, box.top), 3)
+
+    def draw_scales(self, maps, area):
+        """Each scale separately: rows are observation kinds, columns scales (finest first)"""
+        cfg = self.cfg
+        kinds = self.observation_kinds()
+        gap, header_h = 8, 20
+        C = cfg.map_channels
+        tile = int(min((area.width - (cfg.num_maps - 1) * gap) / cfg.num_maps,
+                       (area.height - header_h - (len(kinds) - 1) * gap) / len(kinds)))
+        for n in range(cfg.num_maps):
+            x = area.x + n * (tile + gap)
+            color = CROP_COLORS[n % len(CROP_COLORS)]
+            extent_m = cfg.input_size * cfg.scale_factor ** n * cfg.meters_per_pixel
+            self.screen.blit(self.font.render(f'scale {n + 1}: {extent_m:g} m', True, color), (x, area.y))
+            for row, (kind, c) in enumerate(kinds):
+                rect = pygame.Rect(x, area.y + header_h + row * (tile + gap), tile, tile)
+                self.blit_image(self.colorize(kind, maps[..., n * C + c]), rect)
+                if self.show_crops:
+                    pygame.draw.rect(self.screen, color, rect.inflate(2, 2), 2)
+                    pygame.draw.line(self.screen, color, rect.topleft, (rect.right - 1, rect.top), 4)
+                if n == 0:
+                    self.draw_label(kind, rect)
+
+    def draw_crops(self, pos_p, heading):
+        """
+        Regions of the map seen by each scale of the selected robot's
+        observation, rotated with the robot. The thick edge is the forward
+        direction, i.e. the top of the observation panels.
+        """
+        cfg = self.cfg
+        f_vec = np.array([np.cos(heading), np.sin(heading)])
+        r_vec = np.array([np.sin(heading), -np.cos(heading)])
+        for n in range(cfg.num_maps):
+            half = cfg.input_size / 2 * cfg.scale_factor ** n
+            # front left, front right, back right, back left
+            corners = [pos_p + half * (a * f_vec + b * r_vec) for a, b in [(1, -1), (1, 1), (-1, 1), (-1, -1)]]
+            pts = [self.to_screen(*c) for c in corners]
+            color = CROP_COLORS[n % len(CROP_COLORS)]
+            pygame.draw.polygon(self.screen, color, pts, 2)
+            pygame.draw.line(self.screen, color, pts[0], pts[1], 5)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

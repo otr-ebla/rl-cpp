@@ -82,7 +82,7 @@ Train and evaluate:
 * `--total_steps` counts environment steps (each one is `num_agents` agent steps). Every field of `marl/config.py` is a command line argument.
 * Logs are written to `<logdir>/progress.csv`, checkpoints to `<logdir>/checkpoint`.
 * Evaluate on the mowing evaluation maps: `python eval_marl.py --load experiments/marl_4/checkpoint` (add `--num_agents 8` to change the number of robots, `--maps "maps/giant_mowing_*.png"` for other maps). Writes `metrics.csv` (coverage, time to 90/95/99% coverage, overlap, collisions) and an image of the robot paths per episode to `<checkpoint>/eval`.
-* Watch the robots live in a pygame window: `python play_marl.py --load experiments/marl_4/checkpoint` (same `--maps` and `--num_agents` options; keys: space pause, s/a speed, n/p map, tab robot, l lidar, t paths, q quit).
+* Watch the robots live in a pygame window: `python play_marl.py --load experiments/marl_4/checkpoint` (same `--maps` and `--num_agents` options; keys: space pause, s/a speed, n/p map, tab robot, c multi-scale crops, m separate scales, l lidar, t paths, q quit).
 
 Notes:
 * Not implemented in the multi-agent version: stacked observations, action observations, acceleration limits, action delay, the frontier and global total variation rewards (all off by default for mowing), and the exploration task.
