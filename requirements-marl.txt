@@ -11,4 +11,5 @@ optax>=0.2.3
 numpy
 scipy
 pillow
+pygame  # play_marl.py
 pytest
