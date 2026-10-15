@@ -1,0 +1,8 @@
+{
+  "algo": "SAC",
+  "learning_rate": 1e-05,
+  "cnn": true,
+  "cnn_dims": 256,
+  "grouped_convs": true,
+  "buffer_size": 500000
+}
