@@ -80,12 +80,22 @@ class MultiScaleEncoder(nn.Module):
 
 
 class Actor(nn.Module):
-    """Gaussian policy, returns mean and log std of the (unclipped) action."""
+    """
+    Gaussian policy, returns mean and log std of the (unclipped) action.
+
+    With squash_mean, the mean is squashed into the action range [-1, 1] with
+    tanh. Otherwise the mean can drift far outside of it, where all sampled
+    actions are clipped to the same value and the policy gets no gradient
+    back. log_std is bounded from below by min_log_std with a soft floor
+    (min_log_std + softplus), so that it never gets stuck there (-inf: off).
+    """
     action_dim: int
     num_maps: int
     hidden_dims: int = 256
     grouped: bool = True
     init_log_std: float = -0.5
+    squash_mean: bool = True
+    min_log_std: float = -2.0
 
     @nn.compact
     def __call__(self, maps, lidar):
@@ -93,7 +103,15 @@ class Actor(nn.Module):
         x = nn.relu(_dense(self.hidden_dims)(x))
         x = nn.relu(_dense(self.hidden_dims)(x))
         mean = _dense(self.action_dim, scale=0.01)(x)
-        log_std = self.param('log_std', nn.initializers.constant(self.init_log_std), (self.action_dim,))
+        if self.squash_mean:
+            mean = jnp.tanh(mean)
+        if np.isfinite(self.min_log_std):
+            # parameter initialized such that log_std == init_log_std
+            init = self.min_log_std + np.log(np.expm1(self.init_log_std - self.min_log_std))
+            log_std = self.param('log_std', nn.initializers.constant(init), (self.action_dim,))
+            log_std = self.min_log_std + nn.softplus(log_std - self.min_log_std)
+        else:
+            log_std = self.param('log_std', nn.initializers.constant(self.init_log_std), (self.action_dim,))
         return mean, jnp.broadcast_to(log_std, mean.shape)
 
 

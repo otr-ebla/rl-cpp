@@ -111,7 +111,7 @@ def huber(x, delta):
 
 def make_networks(env_cfg: EnvConfig, train_cfg: TrainConfig):
     actor = Actor(env_cfg.action_dim, env_cfg.num_maps, train_cfg.hidden_dims,
-                  train_cfg.grouped_convs, train_cfg.init_log_std)
+                  train_cfg.grouped_convs, train_cfg.init_log_std, train_cfg.squash_mean, train_cfg.min_log_std)
     critic = Critic(env_cfg.num_maps, train_cfg.hidden_dims, train_cfg.grouped_convs)
     return actor, critic
 
@@ -234,7 +234,7 @@ class MAPPO:
         pg_loss = -jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - cfg.clip_eps, 1 + cfg.clip_eps) * adv).mean()
         entropy = gaussian_entropy(log_std).mean()
         metrics = dict(
-            actor_loss=pg_loss, entropy=entropy,
+            actor_loss=pg_loss, entropy=entropy, log_std=log_std.mean(),
             approx_kl=((ratio - 1) - log_ratio).mean(),
             clip_frac=(jnp.abs(ratio - 1) > cfg.clip_eps).mean())
         return pg_loss - cfg.ent_coef * entropy, metrics
@@ -274,33 +274,34 @@ class MAPPO:
         num_mb, mb_size = self.num_minibatches, self.minibatch_env_steps
 
         def minibatch_step(carry, idx):
-            actor, critic, stop = carry
+            actor, critic, stop, i = carry
             batch = {k: jnp.take(x, idx, axis=0) for k, x in data.items()}
             actor_grads, actor_metrics = jax.grad(self._actor_loss, has_aux=True)(actor.params, batch)
             critic_grads, critic_metrics = jax.grad(self._critic_loss, has_aux=True)(critic.params, value_norm, batch)
             # KL early stopping: once the policy moved too far from the one
             # that collected the data, skip the remaining actor updates of
-            # this iteration (the critic keeps training)
+            # this iteration (the critic keeps training). The KL of the first
+            # minibatch is measured before any update, i.e. it is only
+            # numerical noise, and must not freeze the actor.
             if cfg.target_kl > 0:
-                stop = stop | (actor_metrics['approx_kl'] > 1.5 * cfg.target_kl)
+                stop = stop | ((i > 0) & (actor_metrics['approx_kl'] > 1.5 * cfg.target_kl))
             new_actor = actor.apply_gradients(grads=actor_grads)
             actor = jax.tree_util.tree_map(lambda old, new: jnp.where(stop, old, new), actor, new_actor)
             critic = critic.apply_gradients(grads=critic_grads)
             metrics = {**actor_metrics, **critic_metrics, 'actor_updates': 1.0 - stop.astype(jnp.float32)}
-            return (actor, critic, stop), metrics
+            return (actor, critic, stop, i + 1), metrics
 
         def epoch_step(carry, key):
             perm = jax.random.permutation(key, M)[:num_mb * mb_size].reshape(num_mb, mb_size)
             return jax.lax.scan(minibatch_step, carry, perm)
 
         key, k_epochs = jax.random.split(runner.key)
-        (actor, critic, _), metrics = jax.lax.scan(
-            epoch_step, (runner.actor, runner.critic, jnp.zeros((), dtype=bool)),
+        (actor, critic, _, _), metrics = jax.lax.scan(
+            epoch_step, (runner.actor, runner.critic, jnp.zeros((), dtype=bool), jnp.zeros((), dtype=jnp.int32)),
             jax.random.split(k_epochs, cfg.update_epochs))
         metrics = jax.tree_util.tree_map(jnp.mean, metrics)
         metrics['reward'] = traj.reward.mean()
         metrics['value_mean'], metrics['value_std'] = value_norm.stats()
-        metrics['log_std'] = actor.params['params']['log_std'].mean()
 
         runner = runner._replace(actor=actor, critic=critic, value_norm=value_norm, key=key)
         return runner, metrics, infos
@@ -354,7 +355,10 @@ def load_checkpoint(path, env_cfg: EnvConfig = None, train_cfg: TrainConfig = No
     with open(os.path.join(path, 'config.json')) as f:
         config = json.load(f)
     env_cfg = env_cfg or EnvConfig.from_dict(config['env'])
-    train_cfg = train_cfg or TrainConfig.from_dict(config['train'])
+    if train_cfg is None:
+        # checkpoints from before squash_mean / min_log_std: unbounded actor
+        legacy = {'squash_mean': False, 'min_log_std': float('-inf')}
+        train_cfg = TrainConfig.from_dict({**legacy, **config['train']})
     actor, critic = make_networks(env_cfg, train_cfg)
     actor_params, critic_params = init_params(env_cfg, actor, critic, jax.random.PRNGKey(0))
     target = {'actor': actor_params, 'critic': critic_params,

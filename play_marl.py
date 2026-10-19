@@ -236,7 +236,7 @@ class Viewer:
             elif key == pygame.K_RIGHT and self.paused and not self.done:
                 self.step()
             elif key == pygame.K_s:
-                self.speed_idx = min(self.speed_idx + 1, len(SPEEDS) - 1)
+                self.speed_idx = (self.speed_idx + 1) % len(SPEEDS)
             elif key == pygame.K_a:
                 self.speed_idx = max(self.speed_idx - 1, 0)
             elif key == pygame.K_n:

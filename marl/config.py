@@ -184,12 +184,15 @@ class TrainConfig:
     used by the gradient computation does not depend on num_envs.
     The actor updates of an iteration stop once the approximate KL divergence
     to the policy that collected the data exceeds 1.5 * target_kl (0: off).
+    The first minibatch is never stopped: its KL is measured before any update
+    and is only numerical noise (TF32 convolutions with other batch sizes).
+    squash_mean and min_log_std: see marl.networks.Actor.
     """
     seed: int = 0
     num_envs: int = 256
     num_steps: int = 128
     total_steps: int = 200_000_000
-    actor_lr: float = 3e-4
+    actor_lr: float = 1e-4
     critic_lr: float = 3e-4
     anneal_lr: bool = True
     gamma: float = 0.99
@@ -206,6 +209,8 @@ class TrainConfig:
     hidden_dims: int = 256
     grouped_convs: bool = True
     init_log_std: float = -0.5
+    squash_mean: bool = True
+    min_log_std: float = -2.0
     num_random_maps: int = 256
     random_maps_every: int = 50
     start_level: int = 1
