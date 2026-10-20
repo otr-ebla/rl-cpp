@@ -62,6 +62,14 @@ def load_map(filename):
     return img == 0, img == 128
 
 
+def save_map(filename, known, unknown):
+    """Saves a map in the format of load_map"""
+    img = np.full(known.shape, 255, dtype=np.uint8)
+    img[unknown] = 128
+    img[known] = 0
+    Image.fromarray(np.fliplr(img).transpose(1, 0)).save(filename)
+
+
 def train_map_files(group, maps_dir='maps'):
     return sorted(glob.glob(os.path.join(maps_dir, f'train_{group}_*')))
 

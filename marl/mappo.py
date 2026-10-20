@@ -1,5 +1,6 @@
 """
-MAPPO (multi-agent PPO with a centralized critic) in JAX.
+MAPPO (multi-agent PPO with a centralized critic) and IPPO (independent PPO
+with a local critic) in JAX.
 
 One call of the jitted update function collects num_steps steps in num_envs
 parallel environments and then runs update_epochs epochs of PPO on the
@@ -8,7 +9,9 @@ only handles logging, the curriculum, regeneration of the random maps and
 checkpoints.
 
 Actor and critic parameters are shared between the robots. Each robot gets
-its own reward, advantage and value V(s, i) (agent-specific global state).
+its own reward, advantage and value: V(s, i) on the agent-specific global
+state with MAPPO, V(o_i) on its own observation with IPPO (TrainConfig.algo).
+Everything else is the same, so the two can be compared directly.
 """
 import csv
 import json
@@ -28,14 +31,14 @@ from marl.config import EnvConfig, TrainConfig
 from marl.curriculum import Curriculum
 from marl.env import EnvParams, MultiMowerEnv
 from marl.maps import RANDOM_GROUP, build_bank, concat_banks, load_map, random_map, train_map_files
-from marl.networks import Actor, Critic
+from marl.networks import Actor, Critic, LocalCritic
 
 
 class Transition(NamedTuple):
     maps: jnp.ndarray       # T x E x N x C x H x W uint8 (channels first, see _rollout)
     lidar: jnp.ndarray      # T x E x N x R
-    global_maps: jnp.ndarray  # T x E x G x G x 4 uint8
-    agent: jnp.ndarray      # T x E x N x F
+    global_maps: jnp.ndarray  # T x E x G x G x 4 uint8 (T x E x 0 with IPPO)
+    agent: jnp.ndarray      # T x E x N x F (T x E x 0 with IPPO)
     action: jnp.ndarray     # T x E x N x A
     logp: jnp.ndarray       # T x E x N
     value: jnp.ndarray      # T x E x N (normalized if value normalization is used)
@@ -112,8 +115,18 @@ def huber(x, delta):
 def make_networks(env_cfg: EnvConfig, train_cfg: TrainConfig):
     actor = Actor(env_cfg.action_dim, env_cfg.num_maps, train_cfg.hidden_dims,
                   train_cfg.grouped_convs, train_cfg.init_log_std, train_cfg.squash_mean, train_cfg.min_log_std)
-    critic = Critic(env_cfg.num_maps, train_cfg.hidden_dims, train_cfg.grouped_convs)
+    if train_cfg.centralized_critic:
+        critic = Critic(env_cfg.num_maps, train_cfg.hidden_dims, train_cfg.grouped_convs)
+    else:
+        critic = LocalCritic(env_cfg.num_maps, train_cfg.hidden_dims, train_cfg.grouped_convs)
     return actor, critic
+
+
+def critic_value(critic, params, maps, lidar, global_maps, agent):
+    """(B, N) values, global_maps and agent are ignored by the local critic"""
+    if isinstance(critic, LocalCritic):
+        return critic.apply(params, maps, lidar)
+    return critic.apply(params, maps, lidar, global_maps, agent)
 
 
 def init_params(env_cfg: EnvConfig, actor, critic, key):
@@ -125,10 +138,15 @@ def init_params(env_cfg: EnvConfig, actor, critic, key):
     global_maps = jnp.zeros((1, G, G, env_cfg.global_channels), dtype=jnp.uint8)
     agent = jnp.zeros((1, 1, env_cfg.agent_features))
     k_actor, k_critic = jax.random.split(key)
-    return actor.init(k_actor, maps[0], lidar[0]), critic.init(k_critic, maps, lidar, global_maps, agent)
+    if isinstance(critic, LocalCritic):
+        critic_params = critic.init(k_critic, maps, lidar)
+    else:
+        critic_params = critic.init(k_critic, maps, lidar, global_maps, agent)
+    return actor.init(k_actor, maps[0], lidar[0]), critic_params
 
 
 class MAPPO:
+    """MAPPO, or IPPO with train_cfg.algo == 'ippo'"""
 
     def __init__(self, env_cfg: EnvConfig, train_cfg: TrainConfig):
         self.env_cfg = env_cfg
@@ -167,6 +185,9 @@ class MAPPO:
 
     # --------------------------------------------------------------- update
 
+    def _value(self, params, maps, lidar, global_maps, agent):
+        return critic_value(self.critic, params, maps, lidar, global_maps, agent)
+
     def _rollout(self, runner: RunnerState, env_params):
         cfg = self.cfg
         E = cfg.num_envs
@@ -182,14 +203,20 @@ class MAPPO:
             mean, log_std = self.actor.apply(runner.actor.params, maps, lidar)
             action = mean + jnp.exp(log_std) * jax.random.normal(k_act, mean.shape)
             logp = gaussian_log_prob(action, mean, log_std)
-            value = self.critic.apply(runner.critic.params, obs['maps'], obs['lidar'], obs['global'], obs['agent'])
+            value = self._value(runner.critic.params, obs['maps'], obs['lidar'], obs['global'], obs['agent'])
             next_obs, env_state, reward, done, info = env_step(
                 jax.random.split(k_env, E), env_state, action.reshape(E, N, A), env_params)
             # The maps are stored channels first, the layout XLA picks for the
             # convolutions. Stored channels last, XLA transposes the whole
             # trajectory (2 GB for 256 environments) before the minibatch loop.
+            # The local critic of IPPO does not use the global state, it is
+            # not stored.
+            if self.cfg.centralized_critic:
+                global_maps, agent = obs['global'], obs['agent']
+            else:
+                global_maps, agent = jnp.zeros((E, 0), jnp.uint8), jnp.zeros((E, 0))
             transition = Transition(
-                to_channels_first(obs['maps']), obs['lidar'], obs['global'], obs['agent'], action.reshape(E, N, A),
+                to_channels_first(obs['maps']), obs['lidar'], global_maps, agent, action.reshape(E, N, A),
                 logp.reshape(E, N), value, reward, done)
             info = dict(info, done=done)
             return (env_state, next_obs, key), (transition, info)
@@ -241,7 +268,7 @@ class MAPPO:
 
     def _critic_loss(self, params, value_norm, batch):
         cfg = self.cfg
-        value = self.critic.apply(params, to_channels_last(batch['maps']), batch['lidar'], batch['global_maps'], batch['agent'])
+        value = self._value(params, to_channels_last(batch['maps']), batch['lidar'], batch['global_maps'], batch['agent'])
         target = batch['target']
         if cfg.use_value_norm:
             target = value_norm.normalize(target)
@@ -257,7 +284,7 @@ class MAPPO:
         # Collect experience
         runner, traj, infos = self._rollout(runner, env_params)
         obs = runner.obs
-        last_value = self.critic.apply(runner.critic.params, obs['maps'], obs['lidar'], obs['global'], obs['agent'])
+        last_value = self._value(runner.critic.params, obs['maps'], obs['lidar'], obs['global'], obs['agent'])
 
         # Advantages and value targets
         advantages, targets = self._gae(traj, last_value, runner.value_norm)
@@ -399,7 +426,7 @@ def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', c
     t_start = time.time()
     t_last = t_start
     if verbose:
-        print(f'{algo.num_updates} updates of {steps_per_update} environment steps '
+        print(f'{train_cfg.algo.upper()}: {algo.num_updates} updates of {steps_per_update} environment steps '
               f'({steps_per_update * env_cfg.num_agents} agent steps)', flush=True)
 
     for update in range(1, algo.num_updates + 1):

@@ -21,6 +21,8 @@ Keys:
   l            toggle lidar rays
   t            toggle paths
   d            toggle deterministic / sampled actions
+  b            limited communication: switch the map between the true global
+               map and the belief of the selected robot
   q / Esc      quit
 
 The map shows coverage (green, darker with more overlap), obstacles not yet
@@ -28,6 +30,10 @@ detected (gray), detected obstacles (black) and the frontier (magenta). The
 panels on the right show the multi-scale egocentric observation of the
 selected robot (up = forward), with the same colors as the single-agent
 renderer (rlm/renderer.py).
+
+With limited communication (--comm_range > 0), the communication range of the
+selected robot is drawn as a circle and robots within range of each other are
+linked by a line.
 """
 import argparse
 import glob
@@ -35,6 +41,7 @@ import math
 import os
 import time
 from argparse import BooleanOptionalAction
+from functools import partial
 
 # Only allocate the GPU memory that is needed, so that the viewer can run next to a training
 os.environ.setdefault('XLA_PYTHON_CLIENT_PREALLOCATE', 'false')
@@ -46,7 +53,7 @@ import numpy as np
 import pygame
 
 from marl.config import EnvConfig
-from marl.env import EnvParams, MultiMowerEnv, max_pool
+from marl.env import EnvParams, MultiMowerEnv, frontier_map
 from marl.maps import build_bank, canvas_size_for, eval_map_files, load_map
 from marl.mappo import load_checkpoint, make_networks
 
@@ -97,24 +104,26 @@ class Simulation:
             state, rewards, done, info = env._step_state(k_step, state, action.reshape(N, -1))
             return env._observation(k_obs, state), state, rewards, done, info
 
-        @jax.jit
-        def map_codes(state):
-            """(S, S) uint8 cell codes for display, see CODE_COLORS"""
+        @partial(jax.jit, static_argnums=2)
+        def map_codes(state, robot, belief):
+            """
+            (S, S) uint8 cell codes for display, see CODE_COLORS, of the true
+            global map, or (belief) of the belief of robot (limited communication)
+            """
             S = env_cfg.canvas_size
             ii = jnp.arange(S)[:, None]
             jj = jnp.arange(S)[None, :]
             outside = (ii >= state.size) | (jj >= state.size)
             border = (ii == 0) | (jj == 0) | (ii == state.size - 1) | (jj == state.size - 1)
-            covered = state.overlap > 0
-            # frontier as in MultiMowerEnv._observation
-            known_b = (state.known | border | outside).astype(jnp.uint8)
-            known_dil = max_pool(known_b, env_cfg.obstacle_dilation) > 0 if env_cfg.obstacle_dilation > 1 else known_b > 0
-            cov_c = covered & ~known_dil
-            frontier = (max_pool(cov_c.astype(jnp.uint8), 3) > 0) & ~(cov_c | known_dil)
-            code = jnp.clip(state.overlap, 0, 4).astype(jnp.uint8)
+            if belief:
+                overlap, known = state.belief_overlap[robot], state.belief_known[robot]
+            else:
+                overlap, known = state.overlap, state.known
+            frontier = frontier_map(overlap > 0, known, border | outside, env_cfg.obstacle_dilation)
+            code = jnp.clip(overlap, 0, 4).astype(jnp.uint8)
             code = jnp.where(frontier, 7, code)
-            code = jnp.where(state.obstacles & ~state.known, 5, code)
-            code = jnp.where(state.known, 6, code)
+            code = jnp.where(state.obstacles & ~known, 5, code)
+            code = jnp.where(known, 6, code)
             return jnp.where(outside, 8, code).astype(jnp.uint8)
 
         self._reset, self._step, self._map_codes = reset, step, map_codes
@@ -127,8 +136,8 @@ class Simulation:
         self.obs, self.state, rewards, done, info = self._step(key, self.obs, self.state, deterministic)
         return jax.device_get((rewards, done, info))
 
-    def map_codes(self):
-        return np.asarray(self._map_codes(self.state))
+    def map_codes(self, robot=0, belief=False):
+        return np.asarray(self._map_codes(self.state, robot, belief))
 
 
 class Viewer:
@@ -149,6 +158,7 @@ class Viewer:
         self.selected = 0
         self.show_crops = False
         self.show_scales = False
+        self.show_belief = False
 
         margin = 10
         self.map_rect = pygame.Rect(margin, margin, args.window, args.window)
@@ -257,6 +267,8 @@ class Viewer:
                 self.show_paths = not self.show_paths
             elif key == pygame.K_d:
                 self.deterministic = not self.deterministic
+            elif key == pygame.K_b and self.cfg.limited_comm:
+                self.show_belief = not self.show_belief
 
     # ------------------------------------------------------------ drawing
 
@@ -276,7 +288,7 @@ class Viewer:
         state = jax.device_get(self.sim.state)
         size = self.map_sizes[self.map_idx]
         k = self.map_rect.width / size
-        codes = self.sim.map_codes()[:size, :size]
+        codes = self.sim.map_codes(self.selected, self.show_belief)[:size, :size]
         img = CODE_COLORS[codes][:, ::-1]           # indexed [x, y], y up -> pygame [x, y], y down
         surf = pygame.surfarray.make_surface(np.ascontiguousarray(img))
         self.screen.blit(pygame.transform.scale(surf, self.map_rect.size), self.map_rect)
@@ -296,6 +308,17 @@ class Viewer:
                 for a, d in zip(state.heading[n] + angles, state.lidar_dist[n]):
                     end = self.to_screen(pos[n, 0] + d * np.cos(a), pos[n, 1] + d * np.sin(a))
                     pygame.draw.line(self.screen, color, start, end, 1)
+        if cfg.limited_comm:
+            # communication range of the selected robot, links between robots in range
+            comm_p = cfg.comm_range * cfg.pixels_per_meter
+            self.screen.set_clip(self.map_rect)
+            pygame.draw.circle(self.screen, ROBOT_COLORS[self.selected % len(ROBOT_COLORS)],
+                               self.to_screen(*pos[self.selected]), comm_p * k, 1)
+            self.screen.set_clip(None)
+            for i in range(cfg.num_agents):
+                for j in range(i + 1, cfg.num_agents):
+                    if np.linalg.norm(pos[i] - pos[j]) <= comm_p:
+                        pygame.draw.line(self.screen, GRAY, self.to_screen(*pos[i]), self.to_screen(*pos[j]), 2)
         for n in range(cfg.num_agents):
             color = ROBOT_COLORS[n % len(ROBOT_COLORS)]
             center = self.to_screen(*pos[n])
@@ -331,7 +354,8 @@ class Viewer:
             f'collisions {int(state.collisions.sum())}',
             f'speed {"max" if math.isinf(speed) else f"x{speed}"}   {"PAUSED" if self.paused else ""}',
             f'actions {"deterministic" if self.deterministic else "sampled"}',
-            '',
+            (f'comm range {cfg.comm_range:g} m   [b] map: {f"belief of robot {self.selected}" if self.show_belief else "global"}'
+             if cfg.limited_comm else 'comm range unlimited'),
             'robot  return   reward  coll.']
         for n in range(cfg.num_agents):
             mark = '>' if n == self.selected else ' '
@@ -489,6 +513,8 @@ def main():
     parser.add_argument('--maps', default=None, type=str, help='glob of map images (default: mowing evaluation maps)')
     parser.add_argument('--map', default=0, type=int, help='index of the first map')
     parser.add_argument('--num_agents', default=None, type=int, help='default: as in training')
+    parser.add_argument('--comm_range', default=None, type=float,
+                        help='communication range [m], 0: unlimited (default: as in training)')
     parser.add_argument('--max_steps', default=5000, type=int)
     parser.add_argument('--goal_coverage', default=0.99, type=float)
     parser.add_argument('--deterministic', default=True, action=BooleanOptionalAction)
@@ -508,6 +534,8 @@ def main():
         max_non_new_steps=args.max_steps)
     if args.num_agents is not None:
         overrides['num_agents'] = args.num_agents
+    if args.comm_range is not None:
+        overrides['comm_range'] = args.comm_range
     env_cfg = EnvConfig.from_dict(overrides)
 
     actor, _ = make_networks(env_cfg, train_cfg)

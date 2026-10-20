@@ -1,10 +1,20 @@
 """
 Multi-agent lawn mowing environment in JAX.
 
-N robots mow the same map. They share one global map (perfect communication):
-every step all robots move simultaneously, then the shared coverage and known
-obstacle maps are updated with the contributions of all robots, and then each
-robot extracts its own egocentric multi-scale observation from the shared maps.
+N robots mow the same map. With unlimited communication (comm_range = 0) they
+share one global map: every step all robots move simultaneously, then the
+shared coverage and known obstacle maps are updated with the contributions of
+all robots, and then each robot extracts its own egocentric multi-scale
+observation from the shared maps.
+
+With limited communication (comm_range > 0) each robot keeps its own belief of
+the coverage (overlap counts) and known obstacle maps. Every step each robot
+adds its own coverage and lidar detections to its belief, then the robots that
+are connected (within comm_range of each other, directly or through other
+robots) merge their beliefs: OR of the known obstacles, maximum of the overlap
+counts (OR of the coverage). Each robot extracts its observation from its own
+belief. The true global maps are still kept for the rewards, the metrics and
+the global state of the centralized critic (centralized training).
 
 The environment is a set of pure functions on an EnvState, for one
 environment. Use jax.vmap to simulate many environments in parallel, see
@@ -54,7 +64,10 @@ class EnvState:
     heading: jnp.ndarray        # (N,) robot headings [rad]
     prev_pos: jnp.ndarray       # (N, 2) positions one step earlier [m]
     overlap: jnp.ndarray        # (S, S) int16, number of times each pixel was covered
-    known: jnp.ndarray          # (S, S) bool, known obstacles (shared by all robots)
+    known: jnp.ndarray          # (S, S) bool, obstacles known by the team (all lidar detections)
+    belief_overlap: jnp.ndarray  # (N, S, S) int16, each robot's belief of overlap ((N, 0, 0) if comm is unlimited)
+    belief_known: jnp.ndarray   # (N, S, S) bool, each robot's belief of known ((N, 0, 0) if comm is unlimited)
+    connected: jnp.ndarray      # (N, N) bool, robots that can communicate (directly or through others)
     obstacles: jnp.ndarray      # (S, S) bool, see MapBank
     dilated: jnp.ndarray        # (S, S) bool, see MapBank
     blocked: jnp.ndarray        # (S, S) bool, see MapBank
@@ -67,6 +80,8 @@ class EnvState:
     coverage_px: jnp.ndarray    # () float32, covered free pixels (team)
     overlap_px: jnp.ndarray     # () float32, overlapping free pixels (team)
     collisions: jnp.ndarray     # (N,) int32
+    robot_collisions: jnp.ndarray  # (N,) int32, collisions with other robots
+    covered_by: jnp.ndarray     # (N,) float32, newly covered free pixels attributed to each robot
     ep_return: jnp.ndarray      # (N,) float32, undiscounted return so far
     lidar_dist: jnp.ndarray     # (N, R) float32, latest lidar distances [pixels]
 
@@ -101,16 +116,20 @@ def segment_distance(pi, pj, a, b):
 
 
 def max_pool(x, k):
-    """Separable k x k max filter (same size output, zero padding), x: (S, S) uint8"""
+    """Separable k x k max filter (same size output, zero padding) of the last two axes, x: (..., S, S) uint8"""
     pad = k // 2
-    x = jax.lax.reduce_window(x, jnp.uint8(0), jax.lax.max, (k, 1), (1, 1), [(pad, pad), (0, 0)])
-    return jax.lax.reduce_window(x, jnp.uint8(0), jax.lax.max, (1, k), (1, 1), [(0, 0), (pad, pad)])
+    ones = (1,) * (x.ndim - 2)
+    nopad = [(0, 0)] * (x.ndim - 2)
+    x = jax.lax.reduce_window(x, jnp.uint8(0), jax.lax.max, ones + (k, 1), ones + (1, 1),
+                              nopad + [(pad, pad), (0, 0)])
+    return jax.lax.reduce_window(x, jnp.uint8(0), jax.lax.max, ones + (1, k), ones + (1, 1),
+                                 nopad + [(0, 0), (pad, pad)])
 
 
 def avg_pool(x, f):
-    """Average pooling of (S, S) by an integer factor f"""
-    S = x.shape[0]
-    return x.reshape(S // f, f, S // f, f).mean(axis=(1, 3))
+    """Average pooling of the last two axes of (..., S, S) by an integer factor f"""
+    S = x.shape[-1]
+    return x.reshape(x.shape[:-2] + (S // f, f, S // f, f)).mean(axis=(-3, -1))
 
 
 def bilinear(img, u, v, pad_value):
@@ -135,6 +154,19 @@ def bilinear(img, u, v, pad_value):
            (1 - du) * dv * g(u0, v0 + 1) + du * dv * g(u0 + 1, v0 + 1)
 
 
+def frontier_map(covered, known, edge, dilation):
+    """
+    Frontier between the covered and the not yet covered free space, see
+    MowerEnv._compute_frontier_map. covered, known: (..., S, S) bool,
+    edge: (S, S) bool, map border and outside of the map.
+    """
+    known_b = (known | edge).astype(jnp.uint8)
+    known_dil = max_pool(known_b, dilation) > 0 if dilation > 1 else known_b > 0
+    cov_c = covered & ~known_dil
+    free = ~(cov_c | known_dil)
+    return (max_pool(cov_c.astype(jnp.uint8), 3) > 0) & free
+
+
 def _quantize(x):
     return jnp.round(jnp.clip(x, 0, 1) * 255).astype(jnp.uint8)
 
@@ -146,7 +178,8 @@ class MultiMowerEnv:
     Observations (dict) of one environment:
       maps:   (N, H, W, C) uint8, egocentric multi-scale maps of each robot,
               channels are scale major: [scale 0: coverage, obstacles,
-              frontier, robots], [scale 1: ...], ... (0-255 = 0-1)
+              frontier, robots], [scale 1: ...], ... (0-255 = 0-1), from the
+              shared maps or (limited communication) the robot's own belief
       lidar:  (N, lidar_rays) float32, normalized lidar distances
       global: (G, G, 4) uint8, global maps for the critic: coverage, true
               obstacles, known obstacles, robots (canvas frame)
@@ -219,12 +252,16 @@ class MultiMowerEnv:
         blocked = bank.blocked[idx]
         size = bank.size[idx]
         pos, heading = self._spawn(k_pose, blocked, size)
+        B = S if cfg.limited_comm else 0
         state = EnvState(
             pos=pos,
             heading=heading,
             prev_pos=pos,
             overlap=jnp.zeros((S, S), dtype=jnp.int16),
             known=bank.known[idx],
+            belief_overlap=jnp.zeros((N, B, B), dtype=jnp.int16),
+            belief_known=jnp.broadcast_to(bank.known[idx][:B, :B], (N, B, B)),
+            connected=self._connectivity(pos),
             obstacles=bank.obstacles[idx],
             dilated=bank.dilated[idx],
             blocked=blocked,
@@ -237,6 +274,8 @@ class MultiMowerEnv:
             coverage_px=jnp.zeros(()),
             overlap_px=jnp.zeros(()),
             collisions=jnp.zeros((N,), dtype=jnp.int32),
+            robot_collisions=jnp.zeros((N,), dtype=jnp.int32),
+            covered_by=jnp.zeros((N,)),
             ep_return=jnp.zeros((N,)),
             lidar_dist=jnp.zeros((N, cfg.lidar_rays)))
 
@@ -244,7 +283,10 @@ class MultiMowerEnv:
         dist, hit_pix, write = self._lidar(pos, heading, state.obstacles, size)
         state = state.replace(known=self._update_known(state.known, hit_pix, write), lidar_dist=dist)
         cov = self._coverage_update(state, pos, initial=True)
-        return state.replace(overlap=cov['overlap'], coverage_px=cov['team_new'])
+        state = state.replace(overlap=cov['overlap'], coverage_px=cov['team_new'], covered_by=cov['new_share'])
+        if cfg.limited_comm:
+            state = self._update_beliefs(state, cov, hit_pix, write)
+        return state
 
     def _velocities(self, actions):
         cfg = self.cfg
@@ -315,6 +357,41 @@ class MultiMowerEnv:
         j = jnp.where(write, hit_pix[..., 1], S)
         return known.at[i.reshape(-1), j.reshape(-1)].set(True, mode='drop')
 
+    def _update_belief_known(self, belief_known, hit_pix, write):
+        """Adds the lidar detections (N, R) of each robot to its own belief (N, S, S)"""
+        S = belief_known.shape[-1]
+        n = jnp.broadcast_to(jnp.arange(self.cfg.num_agents)[:, None], write.shape)
+        i = jnp.where(write, hit_pix[..., 0], S)
+        j = jnp.where(write, hit_pix[..., 1], S)
+        return belief_known.at[n.reshape(-1), i.reshape(-1), j.reshape(-1)].set(True, mode='drop')
+
+    def _connectivity(self, pos):
+        """
+        (N, N) bool, robots i and j can communicate: there is a path of robots
+        from i to j in which subsequent robots are within comm_range.
+        Always True with unlimited communication.
+        """
+        N = self.cfg.num_agents
+        if not self.cfg.limited_comm:
+            return jnp.ones((N, N), dtype=bool)
+        d = jnp.linalg.norm(pos[:, None] - pos[None, :], axis=-1)
+        conn = (d <= self.cfg.comm_range) | jnp.eye(N, dtype=bool)
+        # transitive closure: after k squarings, paths of up to 2 ** k hops
+        for _ in range(max(N - 1, 1).bit_length()):
+            conn = (conn.astype(jnp.int32) @ conn.astype(jnp.int32)) > 0
+        return conn
+
+    def _merge_beliefs(self, belief, conn):
+        """
+        Each robot merges the beliefs (N, S, S) of the robots it is connected
+        to: maximum, i.e. OR for bool maps.
+        Loop over the robots instead of a (N, N, S, S) intermediate.
+        """
+        merged = belief
+        for j in range(self.cfg.num_agents):
+            merged = jnp.where(conn[:, j, None, None], jnp.maximum(merged, belief[j][None]), merged)
+        return merged
+
     def _coverage_update(self, state: EnvState, new_pos, initial=False):
         """
         Region covered by each robot in this step, in a local window around
@@ -377,7 +454,20 @@ class MultiMowerEnv:
 
         return dict(overlap=overlap, new_share=new_share, team_new=team_new,
                     team_diff=team_diff, any_new=jnp.any(newly), tv_diff=tv_diff,
-                    overlap_sum=overlap_sum)
+                    overlap_sum=overlap_sum, diff=diff, ii=II, jj=JJ)
+
+    def _update_beliefs(self, state: EnvState, cov, hit_pix, write):
+        """
+        Limited communication: each robot adds its own coverage (cov, see
+        _coverage_update) and lidar detections to its belief, then the
+        connected robots (at state.pos) merge their beliefs.
+        """
+        n = jnp.broadcast_to(jnp.arange(self.cfg.num_agents)[:, None, None], cov['diff'].shape)
+        belief_overlap = state.belief_overlap.at[n, cov['ii'], cov['jj']].add(cov['diff'].astype(jnp.int16))
+        belief_known = self._update_belief_known(state.belief_known, hit_pix, write)
+        conn = state.connected
+        return state.replace(belief_overlap=self._merge_beliefs(belief_overlap, conn),
+                             belief_known=self._merge_beliefs(belief_known, conn))
 
     def _step_state(self, key, state: EnvState, actions):
         cfg = self.cfg
@@ -468,8 +558,13 @@ class MultiMowerEnv:
             coverage_px=coverage_px,
             overlap_px=overlap_px,
             collisions=state.collisions + collided,
+            robot_collisions=state.robot_collisions + robot,
+            covered_by=state.covered_by + cov['new_share'],
             ep_return=state.ep_return + rewards,
-            lidar_dist=lidar_dist)
+            lidar_dist=lidar_dist,
+            connected=self._connectivity(new_pos))
+        if cfg.limited_comm:
+            state = self._update_beliefs(state, cov, hit_pix, write)
         info = dict(
             success=success,
             coverage=coverage,
@@ -481,6 +576,14 @@ class MultiMowerEnv:
         return state, rewards, done, info
 
     # ------------------------------------------------------- observations
+
+    def _coverage_known(self, overlap, known):
+        """Coverage and known obstacle channels (float32) of the observation"""
+        if self.cfg.overlap_observation:
+            coverage = jnp.tanh(0.2 * overlap.astype(jnp.float32))
+        else:
+            coverage = (overlap > 0).astype(jnp.float32)
+        return coverage, known.astype(jnp.float32)
 
     def _observation(self, key, state: EnvState):
         cfg = self.cfg
@@ -494,27 +597,21 @@ class MultiMowerEnv:
         dist = dist + cfg.lidar_noise * jax.random.normal(k_lidar, dist.shape)
         lidar = jnp.clip(dist / cfg.lidar_range, 0, 1)
 
-        # Shared full resolution maps
+        # Full resolution maps: shared (S, S), or each robot's belief (N, S, S)
         ii = jnp.arange(S)[:, None]
         jj = jnp.arange(S)[None, :]
         outside = (ii >= state.size) | (jj >= state.size)
         border = (ii == 0) | (jj == 0) | (ii == state.size - 1) | (jj == state.size - 1)
-        covered = state.overlap > 0
-        if cfg.overlap_observation:
-            coverage = jnp.tanh(0.2 * state.overlap.astype(jnp.float32))
+        coverage, known = self._coverage_known(state.overlap, state.known)
+        if cfg.limited_comm:
+            obs_overlap, obs_known = state.belief_overlap, state.belief_known
         else:
-            coverage = covered.astype(jnp.float32)
-        known = state.known.astype(jnp.float32)
-        channels = [coverage, known]
+            obs_overlap, obs_known = state.overlap, state.known
+        channels = list(self._coverage_known(obs_overlap, obs_known))
         pads = [0.0, 0.0 if cfg.all_unknown else 1.0]
         if cfg.frontier_observation:
-            # see MowerEnv._compute_frontier_map
-            known_b = (state.known | border | outside).astype(jnp.uint8)
-            known_dil = max_pool(known_b, cfg.obstacle_dilation) > 0 if cfg.obstacle_dilation > 1 else known_b > 0
-            cov_c = covered & ~known_dil
-            free = ~(cov_c | known_dil)
-            frontier = (max_pool(cov_c.astype(jnp.uint8), 3) > 0) & free
-            channels.append(frontier.astype(jnp.float32))
+            channels.append(frontier_map(obs_overlap > 0, obs_known, border | outside, cfg.obstacle_dilation)
+                            .astype(jnp.float32))
             pads.append(0.0)
 
         # Pyramids: level n is average pooled by scale_factor ** n
@@ -536,7 +633,13 @@ class MultiMowerEnv:
         r_vec = jnp.stack([jnp.sin(noisy_heading), -jnp.cos(noisy_heading)], axis=-1)  # N x 2
         npos_p = noisy_pos * ppm
         pos_p = state.pos * ppm
-        other = ~jnp.eye(N, dtype=bool)
+        # robots only know the positions of the robots they can communicate with
+        other = ~jnp.eye(N, dtype=bool) & state.connected
+        if cfg.limited_comm:
+            # per robot maps: sample the map of robot n at its own grid
+            sample = jax.vmap(bilinear, in_axes=(0, 0, 0, None))
+        else:
+            sample = bilinear
 
         maps = []
         for n in range(cfg.num_maps):
@@ -548,7 +651,7 @@ class MultiMowerEnv:
             u = world[..., 0] / f - 0.5
             v = world[..., 1] / f - 0.5
             for c, (levels, pad) in enumerate(zip(pyramids, pads)):
-                val = bilinear(levels[n], u, v, pad)
+                val = sample(levels[n], u, v, pad)
                 if cfg.frontier_observation and c == 2:
                     val = (val > 1e-6).astype(jnp.float32)
                 maps.append(val)

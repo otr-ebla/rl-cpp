@@ -1,0 +1,24 @@
+{
+  "MAPPO": {
+    "checkpoint": "experiments/marl_4_v2/checkpoint",
+    "overrides": {},
+    "comm_range": 0
+  },
+  "IPPO": {
+    "checkpoint": "experiments/ippo_4/checkpoint",
+    "overrides": {},
+    "comm_range": 0
+  },
+  "MAPPO 5 m": {
+    "checkpoint": "experiments/marl_4_comm5/checkpoint",
+    "overrides": {},
+    "comm_range": 5.0
+  },
+  "MAPPO tested at 5 m": {
+    "checkpoint": "experiments/marl_4_v2/checkpoint",
+    "overrides": {
+      "comm_range": 5
+    },
+    "comm_range": 5
+  }
+}

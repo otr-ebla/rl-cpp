@@ -1,9 +1,11 @@
 """
-Actor and centralized critic in Flax (channels last, NHWC).
+Actor, centralized critic (MAPPO) and local critic (IPPO) in Flax
+(channels last, NHWC).
 
 The actor only sees the robot's own egocentric observation (decentralized
 execution). The critic additionally sees the global state of the environment
 and the robot's own state, i.e. an agent-specific global state as in MAPPO.
+The local critic of IPPO only sees the robot's own observation, like the actor.
 The critic takes all robots of an environment at once, so that the global
 maps are only encoded once per environment.
 Parameters are shared between robots.
@@ -151,3 +153,25 @@ class Critic(nn.Module):
         x = nn.relu(_dense(self.hidden_dims)(x))
         x = nn.relu(_dense(self.hidden_dims)(x))
         return _dense(1, scale=1.0)(x)[..., 0]
+
+
+class LocalCritic(nn.Module):
+    """
+    Independent (IPPO) value function V(o_i) for each robot i, computed from
+    the robot's own egocentric observation only, the same inputs as the actor.
+    The observation still comes from the global maps shared by all robots.
+
+    Inputs: maps, lidar: (B, N, ...). Returns (B, N) values.
+    """
+    num_maps: int
+    hidden_dims: int = 256
+    grouped: bool = True
+
+    @nn.compact
+    def __call__(self, maps, lidar):
+        B, N = maps.shape[:2]
+        x = MultiScaleEncoder(self.num_maps, self.hidden_dims, self.grouped)(
+            maps.reshape((B * N,) + maps.shape[2:]), lidar.reshape(B * N, -1))
+        x = nn.relu(_dense(self.hidden_dims)(x))
+        x = nn.relu(_dense(self.hidden_dims)(x))
+        return _dense(1, scale=1.0)(x)[..., 0].reshape(B, N)

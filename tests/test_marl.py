@@ -35,7 +35,8 @@ def set_poses(env, params, pos, heading, key=0):
     pos = jnp.asarray(pos, dtype=jnp.float32)
     heading = jnp.asarray(heading, dtype=jnp.float32)
     state = state.replace(pos=pos, prev_pos=pos, heading=heading,
-                          overlap=jnp.zeros_like(state.overlap), coverage_px=jnp.zeros(()))
+                          overlap=jnp.zeros_like(state.overlap), coverage_px=jnp.zeros(()),
+                          belief_overlap=jnp.zeros_like(state.belief_overlap), connected=env._connectivity(pos))
     dist, _, _ = env._lidar(pos, heading, state.obstacles, state.size)
     return state.replace(lidar_dist=dist)
 
@@ -216,10 +217,12 @@ def test_curriculum():
 
 
 @pytest.mark.slow
-def test_mappo_update():
+@pytest.mark.parametrize('algo,comm_range', [('mappo', 0), ('ippo', 0), ('mappo', 1.0)])
+def test_mappo_update(algo, comm_range):
     from marl.mappo import MAPPO
-    env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8)
-    train_cfg = TrainConfig(num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, update_epochs=2, hidden_dims=32)
+    env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8, comm_range=comm_range)
+    train_cfg = TrainConfig(algo=algo, num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, update_epochs=2,
+                            hidden_dims=32)
     bank = build_bank([empty_map(), empty_map(48)], env_cfg)
     params = EnvParams(bank=bank, map_logits=jnp.zeros(2), goal_coverage=jnp.float32(0.9))
     algo = MAPPO(env_cfg, train_cfg)
@@ -231,3 +234,84 @@ def test_mappo_update():
     assert infos['done'].shape == (8, 2) and np.array(infos['done']).sum() == 2
     changed = jax.tree_util.tree_map(lambda a, b: not np.allclose(a, np.array(b)), before, runner.actor.params)
     assert any(jax.tree_util.tree_leaves(changed))
+
+
+def test_comm_range_covering_the_map_equals_shared_map():
+    """With a range larger than the map, the beliefs equal the shared map (binary coverage observation)"""
+    rng = np.random.default_rng(2)
+    cfg = EnvConfig(**SMALL)
+    maps = [random_map(rng, cfg, min_size_p=64, max_size_p=64)[:2] for _ in range(2)]
+    shared, params = make_env(maps, num_agents=3, overlap_observation=False)
+    limited, _ = make_env(maps, num_agents=3, overlap_observation=False, comm_range=100)
+    obs_s, state_s = shared.reset(jax.random.PRNGKey(0), params)
+    obs_l, state_l = limited.reset(jax.random.PRNGKey(0), params)
+    assert state_s.belief_overlap.shape == (3, 0, 0) and state_l.belief_overlap.shape == (3, 64, 64)
+    key = jax.random.PRNGKey(1)
+    for _ in range(20):
+        for k in obs_s:
+            assert np.array_equal(np.array(obs_s[k]), np.array(obs_l[k])), k
+        key, k1, k2 = jax.random.split(key, 3)
+        actions = jax.random.uniform(k1, (3, 1), minval=-1, maxval=1)
+        obs_s, state_s, r_s, _, _ = shared.step(k2, state_s, actions, params)
+        obs_l, state_l, r_l, _, _ = limited.step(k2, state_l, actions, params)
+        assert np.allclose(np.array(r_s), np.array(r_l))
+
+
+def test_limited_comm_beliefs():
+    env, params = make_env([empty_map()], num_agents=2, comm_range=0.5)
+    state = set_poses(env, params, [[0.5, 0.6], [1.4, 1.8]], [0.0, 0.0])
+    assert not bool(state.connected[0, 1])
+    for k in range(4):
+        obs, state, _, _, _ = env.step(jax.random.PRNGKey(k), state, jnp.zeros((2, 1)), params)
+    covered = np.array(state.overlap) > 0
+    belief = np.array(state.belief_overlap) > 0
+    # each robot only knows its own coverage, together they know everything
+    assert belief[0].any() and belief[1].any() and not (belief[0] & belief[1]).any()
+    assert np.array_equal(belief[0] | belief[1], covered)
+    assert not (np.array(state.belief_known) & ~np.array(state.known)).any()
+    # the other robot is not in the robot channel of the observation (scale 0 and coarsest scale)
+    C = env.cfg.map_channels
+    assert not np.array(obs['maps'][:, :, :, C - 1::C]).any()
+
+    # within range, the beliefs are merged (OR) and the robots see each other
+    pos = jnp.array([[1.0, 1.0], [1.0, 1.4]])
+    state = state.replace(pos=pos, prev_pos=pos, connected=env._connectivity(pos))
+    obs, state, _, _, _ = env.step(jax.random.PRNGKey(9), state, jnp.zeros((2, 1)), params)
+    belief = np.array(state.belief_overlap) > 0
+    assert np.array_equal(belief[0], belief[1])
+    assert np.array_equal(belief[0], np.array(state.overlap) > 0)
+    assert np.array_equal(np.array(state.belief_known[0]), np.array(state.known))
+    assert np.array(obs['maps'][:, :, :, C - 1]).any(axis=(1, 2)).all()
+
+
+def test_connectivity_is_transitive():
+    env, _ = make_env([empty_map()], num_agents=4, comm_range=0.5)
+    pos = jnp.array([[0.2, 1.0], [0.6, 1.0], [1.0, 1.0], [2.0, 1.0]])
+    conn = np.array(env._connectivity(pos))
+    assert conn[:3, :3].all()
+    assert not conn[3, :3].any() and not conn[:3, 3].any() and conn[3, 3]
+
+
+def test_stats_compare():
+    from marl.stats import compare, holm, mean_ci
+    S, M, n = 5, 100, 300
+    covered = false_pos = detected = 0
+    for k in range(n):
+        rng = np.random.default_rng(k)
+        maps = rng.uniform(100, 1000, M)                       # hard and easy maps
+        run = lambda scale: scale * maps + rng.normal(0, 30, (S, 1)) + rng.normal(0, 20, (S, M))
+        A, B, C = run(1.0), run(1.1), run(1.0)                 # B is 10 % slower, C as A
+        r = compare(A, B)
+        covered += r['diff_ci'][0] <= 0.1 * 550 <= r['diff_ci'][1]
+        detected += r['p'] < 0.05 and r['p_better'] < 0.5
+        false_pos += compare(A, C)['p'] < 0.05
+    # with 5 seeds a bootstrap gives about 14 % false positives, see marl.stats.
+    # The power to detect the 10 % difference is about 2/3, limited by the
+    # variance between seeds (5 % of the mean)
+    assert covered / n >= 0.92 and false_pos / n <= 0.08 and detected / n >= 0.5
+    est, (lo, hi) = mean_ci(A)
+    assert lo < est < hi
+    # nan (not defined) values are ignored, one seed gives no p-value
+    A[0, :10] = np.nan
+    assert np.isfinite(compare(A, B)['p']) and np.isnan(compare(A[:1], B[:1])['p'])
+    assert np.allclose(holm([0.01, 0.04, 0.03, np.nan]), [0.03, 0.06, 0.06, np.nan], equal_nan=True)

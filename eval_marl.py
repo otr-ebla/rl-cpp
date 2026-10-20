@@ -99,6 +99,8 @@ def main():
     parser.add_argument('--load', required=True, type=str, help='checkpoint directory')
     parser.add_argument('--maps', default=None, type=str, help='glob of map images (default: mowing evaluation maps)')
     parser.add_argument('--num_agents', default=None, type=int, help='default: as in training')
+    parser.add_argument('--comm_range', default=None, type=float,
+                        help='communication range [m], 0: unlimited (default: as in training)')
     parser.add_argument('--episodes', default=1, type=int, help='episodes per map')
     parser.add_argument('--max_steps', default=5000, type=int)
     parser.add_argument('--goal_coverage', default=0.99, type=float)
@@ -118,6 +120,8 @@ def main():
         max_non_new_steps=args.max_steps)
     if args.num_agents is not None:
         overrides['num_agents'] = args.num_agents
+    if args.comm_range is not None:
+        overrides['comm_range'] = args.comm_range
     env_cfg = EnvConfig.from_dict(overrides)
     out_dir = args.out or os.path.join(args.load, 'eval')
     os.makedirs(out_dir, exist_ok=True)

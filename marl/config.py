@@ -34,6 +34,13 @@ class EnvConfig:
     :param overlap_observation: Use overlap (True) or binary coverage (False) in the observation
     :param frontier_observation: Whether to use a frontier map as observation
     :param robot_observation: Whether to use a map of the other robots as observation
+    :param comm_range: Communication range between robots [m]. 0: unlimited,
+        all robots share one global map. > 0: each robot keeps its own belief
+        of the coverage and known obstacle maps, built from its own coverage
+        and lidar, and the beliefs of the robots that are connected (directly
+        within comm_range, or through other robots) are merged with OR (max of
+        the overlap counts) every step. The robot map of the observation then
+        only shows the connected robots
     :param obstacle_dilation: Dilation kernel size around obstacles (metrics, frontier)
     :param global_size: Size of the global maps given to the centralized critic
     :param max_episode_steps: Maximum episode length
@@ -80,6 +87,7 @@ class EnvConfig:
     overlap_observation: bool = True
     frontier_observation: bool = True
     robot_observation: bool = True
+    comm_range: float = 0
     obstacle_dilation: int = 9
     global_size: int = 64
     max_episode_steps: int = 2000
@@ -110,6 +118,7 @@ class EnvConfig:
         assert self.input_size % 2 == 0
         assert self.obstacle_dilation % 2 == 1
         assert 0 <= self.team_reward_weight <= 1
+        assert self.comm_range >= 0
 
     # Derived quantities
 
@@ -124,6 +133,10 @@ class EnvConfig:
     @property
     def lidar_samples(self):
         return int(self.lidar_range * self.pixels_per_meter)
+
+    @property
+    def limited_comm(self):
+        return self.comm_range > 0
 
     @property
     def window(self):
@@ -176,7 +189,14 @@ class EnvConfig:
 @dataclass(frozen=True)
 class TrainConfig:
     """
-    MAPPO hyperparameters.
+    MAPPO / IPPO hyperparameters.
+
+    algo selects the critic. The actor and the rest of the training are the
+    same for both, and in both the robots share the global maps:
+      'mappo': centralized critic V(s, i) on the agent-specific global state
+      'ippo':  independent (local) critic V(o_i) on the robot's own
+               observation only, the same inputs as the actor
+    In both cases the parameters are shared between the robots.
 
     The number of agent samples per update is num_envs * num_steps * num_agents,
     they are split into minibatches of minibatch_size agent samples (all
@@ -188,6 +208,7 @@ class TrainConfig:
     and is only numerical noise (TF32 convolutions with other batch sizes).
     squash_mean and min_log_std: see marl.networks.Actor.
     """
+    algo: str = 'mappo'
     seed: int = 0
     num_envs: int = 256
     num_steps: int = 128
@@ -217,6 +238,13 @@ class TrainConfig:
     curriculum: bool = True
     log_every: int = 1
     save_every: int = 50
+
+    def __post_init__(self):
+        assert self.algo in ('mappo', 'ippo'), "algo must be 'mappo' or 'ippo'"
+
+    @property
+    def centralized_critic(self):
+        return self.algo == 'mappo'
 
     @property
     def batch_size(self):

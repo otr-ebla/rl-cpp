@@ -1,8 +1,9 @@
 """
-Train robots for multi-agent lawn mowing with MAPPO in JAX.
+Train robots for multi-agent lawn mowing with MAPPO or IPPO in JAX.
 
 Examples:
   python train_marl.py --logdir experiments/marl_4robots --num_agents 4
+  python train_marl.py --logdir experiments/ippo_4robots --num_agents 4 --algo ippo
   python train_marl.py --logdir experiments/marl_small --num_envs 64 --num_steps 64 --total_steps 1000000
 
 Every field of marl.config.EnvConfig and marl.config.TrainConfig is available
@@ -14,6 +15,10 @@ import json
 import os
 from argparse import BooleanOptionalAction
 from datetime import datetime
+
+# Let JAX preallocate 90% of the GPU memory instead of the default 75%
+# (set before JAX is imported, an explicit value in the environment wins)
+os.environ.setdefault('XLA_PYTHON_CLIENT_MEM_FRACTION', '0.9')
 
 from marl.config import EnvConfig, TrainConfig
 

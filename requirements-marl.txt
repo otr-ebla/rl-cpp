@@ -12,4 +12,5 @@ numpy
 scipy
 pillow
 pygame  # play_marl.py
+matplotlib  # dashboard_marl.py
 pytest
