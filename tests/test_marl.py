@@ -402,3 +402,43 @@ def test_adaptive_actor_lr():
     assert 'actor_lr' in metrics and np.isfinite(float(metrics['actor_lr']))
     runner, metrics, _ = algo.update(runner, params, train_actor=False)
     assert float(metrics['actor_updates']) == 0
+
+
+def test_ippo_from_mappo_checkpoint(tmp_path):
+    """IPPO started from a MAPPO checkpoint (e.g. init_from_sb3.py): same actor, new local critic"""
+    from marl.mappo import MAPPO, load_init_params, save_checkpoint
+    env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8)
+    mappo_cfg = TrainConfig(num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, hidden_dims=32)
+    bank = build_bank([empty_map()], env_cfg)
+    params = EnvParams(bank=bank, map_logits=jnp.zeros(1), goal_coverage=jnp.float32(0.9))
+    runner = MAPPO(env_cfg, mappo_cfg).init(jax.random.PRNGKey(3), params)
+    save_checkpoint(str(tmp_path), runner, env_cfg, mappo_cfg)
+
+    actor, critic = load_init_params(str(tmp_path), env_cfg, mappo_cfg)
+    assert critic is not None
+    ippo_cfg = TrainConfig(**{**mappo_cfg.to_dict(), 'algo': 'ippo'})
+    actor, critic = load_init_params(str(tmp_path), env_cfg, ippo_cfg)
+    assert critic is None
+    same = jax.tree_util.tree_map(lambda a, b: np.array_equal(np.array(a), np.array(b)), actor, runner.actor.params)
+    assert all(jax.tree_util.tree_leaves(same))
+    runner = MAPPO(env_cfg, ippo_cfg).init(jax.random.PRNGKey(0), params, actor, critic)
+    assert 'MultiScaleEncoder_0' in runner.critic.params['params']
+
+
+def test_config_from(tmp_path):
+    """train_marl.py --config_from: the settings of another run are the defaults, the command line wins"""
+    import json
+    import sys
+    from unittest import mock
+    import train_marl
+    env_cfg = EnvConfig(num_agents=3, lidar_fov=180)
+    train_cfg = TrainConfig(critic_warmup=20, seed=7, adaptive_lr=True)
+    with open(tmp_path / 'config.json', 'w') as f:
+        json.dump({'env': env_cfg.to_dict(), 'train': train_cfg.to_dict()}, f)
+    seen = {}
+    argv = ['train_marl.py', '--config_from', str(tmp_path), '--algo', 'ippo', '--logdir', str(tmp_path / 'run')]
+    with mock.patch.object(sys, 'argv', argv), \
+            mock.patch('marl.mappo.train', lambda e, t, *a, **k: seen.update(env=e, train=t)):
+        train_marl.main()
+    assert seen['env'] == env_cfg
+    assert seen['train'] == TrainConfig(**{**train_cfg.to_dict(), 'algo': 'ippo'})

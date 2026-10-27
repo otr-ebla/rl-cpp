@@ -470,6 +470,38 @@ def load_checkpoint(path, env_cfg: EnvConfig = None, train_cfg: TrainConfig = No
     return params, env_cfg, train_cfg
 
 
+def load_init_params(path, env_cfg: EnvConfig, train_cfg: TrainConfig):
+    """
+    Initial (actor, critic) parameters for training from a checkpoint. The
+    actor must match the networks of env_cfg / train_cfg. The critic is only
+    loaded when it has the same structure, otherwise it is None (newly
+    initialized), e.g. IPPO (local critic) started from a MAPPO checkpoint or
+    from init_from_sb3.py, whose critic is new anyway.
+    """
+    actor, critic = make_networks(env_cfg, train_cfg)
+    actor_target, critic_target = init_params(env_cfg, actor, critic, jax.random.PRNGKey(0))
+    with open(os.path.join(path, 'params.msgpack'), 'rb') as f:
+        raw = flax.serialization.msgpack_restore(f.read())
+
+    def restore(target, state):
+        try:
+            params = flax.serialization.from_state_dict(target, state)
+        except (KeyError, ValueError):
+            return None
+        same = jax.tree_util.tree_structure(params) == jax.tree_util.tree_structure(target) and all(
+            np.shape(a) == np.shape(b) for a, b in zip(jax.tree_util.tree_leaves(params),
+                                                       jax.tree_util.tree_leaves(target)))
+        return params if same else None
+
+    actor_params = restore(actor_target, raw['actor'])
+    assert actor_params is not None, f'{path}: the actor does not match the configuration'
+    critic_params = restore(critic_target, raw['critic'])
+    if critic_params is None:
+        print(f'{path}: the critic does not match the configuration ({type(critic).__name__}), '
+              f'it is newly initialized', flush=True)
+    return actor_params, critic_params
+
+
 def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', checkpoint=None, verbose=True):
     os.makedirs(logdir, exist_ok=True)
     rng = np.random.default_rng(train_cfg.seed)
@@ -490,8 +522,7 @@ def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', c
     algo = MAPPO(env_cfg, train_cfg)
     actor_params = critic_params = None
     if checkpoint is not None:
-        params, _, _ = load_checkpoint(checkpoint, env_cfg, train_cfg)
-        actor_params, critic_params = params['actor'], params['critic']
+        actor_params, critic_params = load_init_params(checkpoint, env_cfg, train_cfg)
     runner = algo.init(key, env_params(), actor_params, critic_params)
     params = env_params()
 

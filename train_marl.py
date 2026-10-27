@@ -5,6 +5,12 @@ Examples:
   python train_marl.py --logdir experiments/marl_4robots --num_agents 4
   python train_marl.py --logdir experiments/ippo_4robots --num_agents 4 --algo ippo
   python train_marl.py --logdir experiments/marl_small --num_envs 64 --num_steps 64 --total_steps 1000000
+  python train_marl.py --config_from experiments/mappo_sb3_v2 --algo ippo --logdir experiments/ippo_sb3_v2 \
+      --checkpoint experiments/sb3_init/checkpoint
+
+With --config_from, the settings of another run (its config.json) are the
+defaults, so a run can repeat another one and only change some settings
+(e.g. the same training as a MAPPO run, with IPPO). The seed is copied too.
 
 Every field of marl.config.EnvConfig and marl.config.TrainConfig is available
 as a command line argument (booleans as --flag / --no-flag).
@@ -33,14 +39,32 @@ def add_dataclass_args(parser, cls, title):
             group.add_argument(f'--{f.name}', default=f.default, type=typ)
 
 
+def read_config(path):
+    """Settings (env and train) of a run directory, checkpoint directory or config.json"""
+    if os.path.isdir(path):
+        path = os.path.join(path, 'config.json')
+    with open(path) as f:
+        config = json.load(f)
+    names = {f.name for cls in (EnvConfig, TrainConfig) for f in dataclasses.fields(cls)}
+    return {k: v for k, v in {**config['env'], **config['train']}.items() if k in names}
+
+
 def main():
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument('--config_from', default=None, type=str)
+    config_from = pre.parse_known_args()[0].config_from
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--config_from', default=None, type=str,
+                        help='run directory, checkpoint directory or config.json whose settings are the defaults')
     parser.add_argument('--logdir', default=None, type=str)
     parser.add_argument('--maps_dir', default='maps', type=str)
     parser.add_argument('--checkpoint', default=None, type=str,
                         help='checkpoint directory to initialize the actor and critic from')
     add_dataclass_args(parser, EnvConfig, 'env')
     add_dataclass_args(parser, TrainConfig, 'train')
+    if config_from is not None:
+        parser.set_defaults(**read_config(config_from))
     args = vars(parser.parse_args())
 
     env_cfg = EnvConfig.from_dict(args)

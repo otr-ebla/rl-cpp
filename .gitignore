@@ -3,3 +3,4 @@
 *.pyc
 experiments
 .venv*
+.jax_cache
