@@ -64,7 +64,7 @@ import numpy as np
 from marl.config import EnvConfig
 from marl.env import EnvParams, MultiMowerEnv
 from marl.maps import build_bank, canvas_size_for, eval_map_files, load_map
-from marl.mappo import load_checkpoint, make_networks
+from marl.mappo import actor_apply, load_checkpoint, make_networks
 
 THRESHOLDS = (0.9, 0.95, 0.99)
 LEVELS = np.arange(1, 100)  # coverage levels of the curves [%]
@@ -100,7 +100,7 @@ def make_rollout(env, actor, max_steps):
     def step_env(actor_params, key, obs, state):
         """One step of one environment"""
         k_step, k_obs = jax.random.split(key)
-        mean, _ = actor.apply(actor_params, obs['maps'], obs['lidar'])
+        mean, _ = actor_apply(actor, actor_params, obs)
         new_state, _, done, _ = env._step_state(k_step, state, mean.reshape(N, -1))
         return env._observation(k_obs, new_state), new_state, done
 
@@ -193,7 +193,7 @@ class Evaluator:
     def rollout(self, env_cfg, train_cfg):
         """Compiled once per environment and network configuration"""
         net = (train_cfg.hidden_dims, train_cfg.grouped_convs, train_cfg.squash_mean, train_cfg.min_log_std,
-               train_cfg.init_log_std)
+               train_cfg.init_log_std, train_cfg.neighbor_dims, train_cfg.neighbor_layers, train_cfg.neighbor_heads)
         k = (env_cfg, net)
         if k not in self._rollouts:
             actor, _ = make_networks(env_cfg, train_cfg)

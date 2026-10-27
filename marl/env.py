@@ -81,6 +81,7 @@ class EnvState:
     overlap_px: jnp.ndarray     # () float32, overlapping free pixels (team)
     collisions: jnp.ndarray     # (N,) int32
     robot_collisions: jnp.ndarray  # (N,) int32, collisions with other robots
+    stuck_steps: jnp.ndarray    # (N,) int32, collisions in a row
     covered_by: jnp.ndarray     # (N,) float32, newly covered free pixels attributed to each robot
     ep_return: jnp.ndarray      # (N,) float32, undiscounted return so far
     lidar_dist: jnp.ndarray     # (N, R) float32, latest lidar distances [pixels]
@@ -179,12 +180,24 @@ class MultiMowerEnv:
       maps:   (N, H, W, C) uint8, egocentric multi-scale maps of each robot,
               channels are scale major: [scale 0: coverage, obstacles,
               frontier, robots], [scale 1: ...], ... (0-255 = 0-1), from the
-              shared maps or (limited communication) the robot's own belief
+              shared maps or (limited communication) the robot's own belief.
+              The robot channel only with robot_observation (legacy)
       lidar:  (N, lidar_rays) float32, normalized lidar distances
-      global: (G, G, 4) uint8, global maps for the critic: coverage, true
-              obstacles, known obstacles, robots (canvas frame)
+      global: (G, G, C) uint8, global maps for the critic: coverage, true
+              obstacles, known obstacles, robots (canvas frame), the robot
+              channel only without neighbor_observation
       agent:  (N, 6) float32, per robot state for the critic: position / canvas
               size, cos/sin heading, team coverage, elapsed time
+    With neighbor_observation, the other robots as sets (row i: robot j as
+    seen by robot i, see _relative_poses), whose size is the number of robots:
+      others:      (N, N, F) float32, relative poses from the robot's own
+                   noisy pose, the actor's input
+      others_mask: (N, N) bool, robot j is observed by robot i: j != i and
+                   (limited communication) i and j are connected
+      team:        (N, N, F + 2) float32, true relative poses and absolute
+                   position / canvas size, for the critic (all j != i)
+      progress:    (2,) float32, episode progress for the critic: goal
+                   coverage, steps without new coverage / max_non_new_steps
     """
 
     def __init__(self, cfg: EnvConfig):
@@ -275,6 +288,7 @@ class MultiMowerEnv:
             overlap_px=jnp.zeros(()),
             collisions=jnp.zeros((N,), dtype=jnp.int32),
             robot_collisions=jnp.zeros((N,), dtype=jnp.int32),
+            stuck_steps=jnp.zeros((N,), dtype=jnp.int32),
             covered_by=jnp.zeros((N,)),
             ep_return=jnp.zeros((N,)),
             lidar_dist=jnp.zeros((N, cfg.lidar_rays)))
@@ -494,6 +508,11 @@ class MultiMowerEnv:
         robot = jnp.any(other & ((d_new < 2 * r) | (d_old < 2 * r)), axis=1) & ~wall & ~obstacle
         collided = wall | obstacle | robot
         new_pos = jnp.where(collided[:, None], state.pos, new_pos)
+        stuck_steps = jnp.where(collided, state.stuck_steps + 1, 0)
+        if cfg.flip_when_stuck:
+            flip = stuck_steps >= cfg.max_stuck_steps
+            new_heading = jnp.where(flip, jnp.mod(new_heading + jnp.pi, 2 * jnp.pi), new_heading)
+            stuck_steps = jnp.where(flip, 0, stuck_steps)
 
         # Lidar and known obstacles
         lidar_dist, hit_pix, write = self._lidar(new_pos, new_heading, state.obstacles, state.size)
@@ -559,6 +578,7 @@ class MultiMowerEnv:
             overlap_px=overlap_px,
             collisions=state.collisions + collided,
             robot_collisions=state.robot_collisions + robot,
+            stuck_steps=stuck_steps,
             covered_by=state.covered_by + cov['new_share'],
             ep_return=state.ep_return + rewards,
             lidar_dist=lidar_dist,
@@ -584,6 +604,26 @@ class MultiMowerEnv:
         else:
             coverage = (overlap > 0).astype(jnp.float32)
         return coverage, known.astype(jnp.float32)
+
+    def _relative_poses(self, pos_p, heading, other_p, other_heading):
+        """
+        (N, N, F) pose of robot j relative to robot i, in the egocentric frame
+        of i (forward, right, as the maps): bearing (unit vector), closeness
+        tanh(distance / half extent of scale n) for each scale n of the maps,
+        cos/sin of the relative heading. Bounded and resolved at all scales.
+        pos_p, other_p: (N, 2) positions [pixels], heading, other_heading: (N,)
+        """
+        cfg = self.cfg
+        rel = other_p[None, :, :] - pos_p[:, None, :]                       # N x N x 2, from i to j
+        c, s = jnp.cos(heading)[:, None], jnp.sin(heading)[:, None]
+        fwd = rel[..., 0] * c + rel[..., 1] * s
+        right = rel[..., 0] * s - rel[..., 1] * c
+        d = jnp.sqrt(fwd ** 2 + right ** 2)
+        bearing = jnp.stack([fwd, right], axis=-1) / jnp.maximum(d, 1e-6)[..., None]
+        extents = cfg.input_size / 2 * cfg.scale_factor ** jnp.arange(cfg.num_maps)
+        closeness = jnp.tanh(d[..., None] / extents)
+        dh = other_heading[None, :] - heading[:, None]
+        return jnp.concatenate([bearing, closeness, jnp.cos(dh)[..., None], jnp.sin(dh)[..., None]], axis=-1)
 
     def _observation(self, key, state: EnvState):
         cfg = self.cfg
@@ -665,16 +705,16 @@ class MultiMowerEnv:
         # Global state for the critic (canvas frame)
         G = cfg.global_size
         g = S // G
-        centers = (jnp.arange(G, dtype=jnp.float32) + 0.5) * g
-        d = jnp.sqrt((centers[:, None, None] - pos_p[None, None, :, 0]) ** 2 +
-                     (centers[None, :, None] - pos_p[None, None, :, 1]) ** 2)        # G x G x N
-        robots_g = jnp.any(d <= cfg.radius_p + g * 0.7072, axis=-1)
-        global_maps = jnp.stack([
+        global_maps = [
             avg_pool(coverage, g),
             avg_pool((state.obstacles | outside).astype(jnp.float32), g),
-            avg_pool(known, g),
-            robots_g.astype(jnp.float32)], axis=-1)
-        global_maps = _quantize(global_maps)
+            avg_pool(known, g)]
+        if not cfg.neighbor_observation:
+            centers = (jnp.arange(G, dtype=jnp.float32) + 0.5) * g
+            d = jnp.sqrt((centers[:, None, None] - pos_p[None, None, :, 0]) ** 2 +
+                         (centers[None, :, None] - pos_p[None, None, :, 1]) ** 2)    # G x G x N
+            global_maps.append(jnp.any(d <= cfg.radius_p + g * 0.7072, axis=-1).astype(jnp.float32))
+        global_maps = _quantize(jnp.stack(global_maps, axis=-1))
 
         coverage_frac = state.coverage_px / state.free_space
         agent = jnp.concatenate([
@@ -684,5 +724,15 @@ class MultiMowerEnv:
             jnp.full((N, 1), coverage_frac),
             jnp.full((N, 1), state.t / cfg.max_episode_steps)], axis=-1)
 
-        return {'maps': maps, 'lidar': lidar.astype(jnp.float32),
-                'global': global_maps, 'agent': agent.astype(jnp.float32)}
+        obs = {'maps': maps, 'lidar': lidar.astype(jnp.float32),
+               'global': global_maps, 'agent': agent.astype(jnp.float32)}
+        if cfg.neighbor_observation:
+            # the robot only knows its own pose with noise, the others' as communicated
+            obs['others'] = self._relative_poses(npos_p, noisy_heading, pos_p, state.heading)
+            obs['others_mask'] = other
+            team = self._relative_poses(pos_p, state.heading, pos_p, state.heading)
+            team_pos = jnp.broadcast_to((pos_p / S)[None], (N, N, 2))
+            obs['team'] = jnp.concatenate([team, team_pos], axis=-1)
+            obs['progress'] = jnp.stack([state.goal_coverage,
+                                         state.non_new_steps / cfg.max_non_new_steps]).astype(jnp.float32)
+        return obs

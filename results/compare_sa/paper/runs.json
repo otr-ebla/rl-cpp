@@ -1,0 +1,65 @@
+{
+  "methods": {
+    "Single-agent xN": {
+      "checkpoints": [
+        "experiments/sb3_init/checkpoint"
+      ],
+      "overrides": {},
+      "comm_range": 0
+    },
+    "Single-agent xN + flip": {
+      "checkpoints": [
+        "experiments/sb3_init/checkpoint"
+      ],
+      "overrides": {
+        "flip_when_stuck": true
+      },
+      "comm_range": 0
+    },
+    "MAPPO": {
+      "checkpoints": [
+        "experiments/mappo_sb3_v2/checkpoint_best"
+      ],
+      "overrides": {},
+      "comm_range": 0
+    },
+    "MAPPO + flip": {
+      "checkpoints": [
+        "experiments/mappo_sb3_v2/checkpoint_best"
+      ],
+      "overrides": {
+        "flip_when_stuck": true
+      },
+      "comm_range": 0
+    },
+    "MAPPO (last)": {
+      "checkpoints": [
+        "experiments/mappo_sb3_v2/checkpoint"
+      ],
+      "overrides": {},
+      "comm_range": 0
+    },
+    "Single-agent fine-tuned xN + flip": {
+      "checkpoints": [
+        "experiments/sa_finetune_n1_resume2/checkpoint"
+      ],
+      "overrides": {
+        "flip_when_stuck": true
+      },
+      "comm_range": 0
+    }
+  },
+  "map_sets": {
+    "paper": {
+      "maps": 38,
+      "episodes": 3,
+      "goal_coverage": 0.95,
+      "max_steps": 40000,
+      "seed": 0,
+      "globs": [
+        "maps/eval_mowing_*.png",
+        "maps/eval_exploration_*.png"
+      ]
+    }
+  }
+}

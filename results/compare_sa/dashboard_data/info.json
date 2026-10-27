@@ -1,0 +1,132 @@
+{
+  "data_dirs": [
+    "/home/alberto_vaglio/rl-cpp/results/compare_sa/paper",
+    "/home/alberto_vaglio/rl-cpp/results/compare_sa/test_large",
+    "/home/alberto_vaglio/rl-cpp/results/compare_sa/test_small"
+  ],
+  "pdf": "/home/alberto_vaglio/rl-cpp/results/compare_sa/dashboard.pdf",
+  "created": "2026-10-24 16:42",
+  "units": "fractions (not percent), times in minutes",
+  "map_sets": {
+    "paper": {
+      "target_coverage": 0.95,
+      "ref_agents": 4,
+      "maps": 38,
+      "num_agents": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "methods": [
+        "Single-agent xN",
+        "Single-agent xN + flip",
+        "MAPPO",
+        "MAPPO + flip",
+        "MAPPO (last)",
+        "Single-agent fine-tuned xN + flip"
+      ],
+      "seeds": {
+        "Single-agent xN": [
+          0
+        ],
+        "Single-agent xN + flip": [
+          0
+        ],
+        "MAPPO": [
+          0
+        ],
+        "MAPPO + flip": [
+          0
+        ],
+        "MAPPO (last)": [
+          0
+        ],
+        "Single-agent fine-tuned xN + flip": [
+          0
+        ]
+      },
+      "step_limit_min": 333.3333333333333
+    },
+    "test_large": {
+      "target_coverage": 0.95,
+      "ref_agents": 4,
+      "maps": 100,
+      "num_agents": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "methods": [
+        "Single-agent xN",
+        "Single-agent xN + flip",
+        "MAPPO",
+        "MAPPO + flip",
+        "MAPPO (last)",
+        "Single-agent fine-tuned xN + flip"
+      ],
+      "seeds": {
+        "Single-agent xN": [
+          0
+        ],
+        "Single-agent xN + flip": [
+          0
+        ],
+        "MAPPO": [
+          0
+        ],
+        "MAPPO + flip": [
+          0
+        ],
+        "MAPPO (last)": [
+          0
+        ],
+        "Single-agent fine-tuned xN + flip": [
+          0
+        ]
+      },
+      "step_limit_min": 250.0
+    },
+    "test_small": {
+      "target_coverage": 0.99,
+      "ref_agents": 4,
+      "maps": 100,
+      "num_agents": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "methods": [
+        "Single-agent xN",
+        "Single-agent xN + flip",
+        "MAPPO",
+        "MAPPO + flip",
+        "MAPPO (last)",
+        "Single-agent fine-tuned xN + flip"
+      ],
+      "seeds": {
+        "Single-agent xN": [
+          0
+        ],
+        "Single-agent xN + flip": [
+          0
+        ],
+        "MAPPO": [
+          0
+        ],
+        "MAPPO + flip": [
+          0
+        ],
+        "MAPPO (last)": [
+          0
+        ],
+        "Single-agent fine-tuned xN + flip": [
+          0
+        ]
+      },
+      "step_limit_min": 66.66666666666667
+    }
+  }
+}

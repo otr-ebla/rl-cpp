@@ -85,8 +85,11 @@ def test_reset():
         cfg = env.cfg
         assert obs['maps'].shape == (3, 32, 32, cfg.obs_channels) and obs['maps'].dtype == jnp.uint8
         assert obs['lidar'].shape == (3, cfg.lidar_rays)
-        assert obs['global'].shape == (16, 16, 4)
+        assert obs['global'].shape == (16, 16, cfg.global_channels) == (16, 16, 3)
         assert obs['agent'].shape == (3, 6)
+        assert obs['others'].shape == (3, 3, cfg.neighbor_features)
+        assert obs['team'].shape == (3, 3, cfg.team_features)
+        assert np.array_equal(np.array(obs['others_mask']), ~np.eye(3, dtype=bool))
         pix = np.floor(np.array(state.pos) * cfg.pixels_per_meter).astype(int)
         assert not np.array(state.blocked)[pix[:, 0], pix[:, 1]].any()
         d = np.linalg.norm(np.array(state.pos)[:, None] - np.array(state.pos)[None], axis=-1)
@@ -167,6 +170,17 @@ def test_robot_collision():
     assert (np.array(rewards) < env.cfg.robot_collision_reward + 1).all()
 
 
+def test_flip_when_stuck():
+    """Two robots driving into each other: deadlock, unless they are flipped after max_stuck_steps"""
+    for flip in (False, True):
+        env, params = make_env([empty_map()], num_agents=2, flip_when_stuck=flip, max_stuck_steps=3)
+        state = set_poses(env, params, [[1.0, 1.0], [1.0, 1.4]], [jnp.pi / 2, -jnp.pi / 2])
+        for k in range(4):
+            state, _, _, _ = env._step_state(jax.random.PRNGKey(k), state, jnp.zeros((2, 1)))
+        d = float(jnp.linalg.norm(state.pos[0] - state.pos[1]))
+        assert (d > 0.4) == flip and int(state.robot_collisions[0]) == (3 if flip else 4)
+
+
 def test_lidar_detects_robots():
     env, params = make_env([empty_map()], num_agents=2)
     state = set_poses(env, params, [[0.9, 1.2], [1.9, 1.2]], [0.0, 0.0])
@@ -217,11 +231,12 @@ def test_curriculum():
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize('algo,comm_range', [('mappo', 0), ('ippo', 0), ('mappo', 1.0)])
-def test_mappo_update(algo, comm_range):
+@pytest.mark.parametrize('algo,critic_state,comm_range', [
+    ('mappo', 'global', 0), ('mappo', 'agent_specific', 0), ('ippo', 'global', 0), ('mappo', 'global', 1.0)])
+def test_mappo_update(algo, critic_state, comm_range):
     from marl.mappo import MAPPO
     env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8, comm_range=comm_range)
-    train_cfg = TrainConfig(algo=algo, num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, update_epochs=2,
+    train_cfg = TrainConfig(algo=algo, critic_state=critic_state, num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, update_epochs=2,
                             hidden_dims=32)
     bank = build_bank([empty_map(), empty_map(48)], env_cfg)
     params = EnvParams(bank=bank, map_logits=jnp.zeros(2), goal_coverage=jnp.float32(0.9))
@@ -269,9 +284,9 @@ def test_limited_comm_beliefs():
     assert belief[0].any() and belief[1].any() and not (belief[0] & belief[1]).any()
     assert np.array_equal(belief[0] | belief[1], covered)
     assert not (np.array(state.belief_known) & ~np.array(state.known)).any()
-    # the other robot is not in the robot channel of the observation (scale 0 and coarsest scale)
-    C = env.cfg.map_channels
-    assert not np.array(obs['maps'][:, :, :, C - 1::C]).any()
+    # the robots do not observe each other, the critic still sees both
+    assert not np.array(obs['others_mask']).any()
+    assert np.abs(np.array(obs['team'])[0, 1]).sum() > 0
 
     # within range, the beliefs are merged (OR) and the robots see each other
     pos = jnp.array([[1.0, 1.0], [1.0, 1.4]])
@@ -281,7 +296,56 @@ def test_limited_comm_beliefs():
     assert np.array_equal(belief[0], belief[1])
     assert np.array_equal(belief[0], np.array(state.overlap) > 0)
     assert np.array_equal(np.array(state.belief_known[0]), np.array(state.known))
-    assert np.array(obs['maps'][:, :, :, C - 1]).any(axis=(1, 2)).all()
+    assert np.array_equal(np.array(obs['others_mask']), ~np.eye(2, dtype=bool))
+
+
+def test_legacy_robot_channel():
+    """Without neighbor_observation: robot map channel and global robot channel, as in old checkpoints"""
+    env, params = make_env([empty_map()], num_agents=2, robot_observation=True, neighbor_observation=False)
+    obs, _ = env.reset(jax.random.PRNGKey(0), params)
+    assert obs['maps'].shape[-1] == env.cfg.obs_channels == 4 * 4
+    assert obs['global'].shape[-1] == 4 and 'others' not in obs
+
+
+def test_relative_poses():
+    """Robot 1 ahead (+x) of robot 0 (heading 0) and robot 2 to its right (-y)"""
+    env, params = make_env([empty_map()], num_agents=3)
+    state = set_poses(env, params, [[1.0, 1.2], [1.6, 1.2], [1.0, 0.6]], [0.0, jnp.pi / 2, 0.0])
+    others = np.array(env._observation(jax.random.PRNGKey(0), state)['others'])
+    assert np.allclose(others[0, 1, :2], [1, 0], atol=1e-5)          # ahead
+    assert np.allclose(others[0, 2, :2], [0, 1], atol=1e-5)          # right
+    assert np.allclose(others[0, 1, -2:], [0, 1], atol=1e-5)         # turned left by 90 degrees
+    # closer robots are closer at every scale, closeness decreases with the scale
+    assert (others[0, 1, 2:-2] > 0).all() and (np.diff(others[0, 1, 2:-2]) < 0).all()
+
+
+@pytest.mark.parametrize('algo,critic_state', [('mappo', 'global'), ('mappo', 'agent_specific'), ('ippo', 'global')])
+def test_networks_agnostic_to_number_of_robots(algo, critic_state):
+    """The same parameters work for any number of robots, invariant to the order of the robots"""
+    from marl.mappo import actor_apply, critic_value, init_params, make_networks
+    train_cfg = TrainConfig(algo=algo, critic_state=critic_state, hidden_dims=32, neighbor_dims=16)
+    rng = np.random.default_rng(0)
+    params = None
+    for N in (1, 2, 5):
+        maps = [random_map(rng, EnvConfig(**SMALL), min_size_p=64, max_size_p=64)[:2]]
+        env, env_params = make_env(maps, num_agents=N, robot_separation=0.3)
+        actor, critic = make_networks(env.cfg, train_cfg)
+        if params is None:
+            params = init_params(env.cfg, actor, critic, jax.random.PRNGKey(0))
+        obs, _ = env.reset(jax.random.PRNGKey(N), env_params)
+        mean, _ = actor_apply(actor, params[0], obs)
+        value = critic_value(critic, params[1], jax.tree_util.tree_map(lambda x: x[None], obs))
+        assert mean.shape == (N, env.cfg.action_dim) and value.shape == (1, N)
+        assert np.isfinite(np.array(mean)).all() and np.isfinite(np.array(value)).all()
+        # permuting the other robots (columns of the sets) changes nothing
+        perm = rng.permutation(N)
+        permuted = dict(obs, others=obs['others'][:, perm], others_mask=obs['others_mask'][:, perm])
+        assert np.allclose(actor_apply(actor, params[0], permuted)[0], mean, atol=1e-5)
+        # permuting the robots permutes their values
+        robots = dict(obs, **{k: obs[k][perm] for k in ('maps', 'lidar', 'agent')},
+                      **{k: obs[k][perm][:, perm] for k in ('others', 'others_mask', 'team')})
+        permuted_value = critic_value(critic, params[1], jax.tree_util.tree_map(lambda x: x[None], robots))
+        assert np.allclose(permuted_value, value[:, perm], atol=1e-4)
 
 
 def test_connectivity_is_transitive():
@@ -315,3 +379,26 @@ def test_stats_compare():
     A[0, :10] = np.nan
     assert np.isfinite(compare(A, B)['p']) and np.isnan(compare(A[:1], B[:1])['p'])
     assert np.allclose(holm([0.01, 0.04, 0.03, np.nan]), [0.03, 0.06, 0.06, np.nan], equal_nan=True)
+
+
+def test_adaptive_actor_lr():
+    """The adaptive learning rate goes down with a large KL, up with a small one, within its bounds"""
+    from marl.mappo import MAPPO
+    env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8)
+    train_cfg = TrainConfig(num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, update_epochs=2,
+                            hidden_dims=32, adaptive_lr=True, actor_lr=1e-4, target_kl=0.02, max_actor_lr=2e-4)
+    bank = build_bank([empty_map(), empty_map(48)], env_cfg)
+    params = EnvParams(bank=bank, map_logits=jnp.zeros(2), goal_coverage=jnp.float32(0.9))
+    algo = MAPPO(env_cfg, train_cfg)
+    runner = algo.init(jax.random.PRNGKey(0), params)
+    actor = runner.actor
+    assert np.isclose(float(algo.actor_lr(actor)), 1e-4)
+    assert np.isclose(float(algo.actor_lr(algo._adapt_actor_lr(actor, 0.1))), 1e-4 / 1.5)
+    assert np.isclose(float(algo.actor_lr(algo._adapt_actor_lr(actor, 0.02))), 1e-4)
+    assert np.isclose(float(algo.actor_lr(algo._adapt_actor_lr(actor, 0.001))), 1.5e-4)
+    high = algo._adapt_actor_lr(algo._adapt_actor_lr(actor, 0.0), 0.0)
+    assert np.isclose(float(algo.actor_lr(high)), 2e-4)
+    runner, metrics, _ = algo.update(runner, params)
+    assert 'actor_lr' in metrics and np.isfinite(float(metrics['actor_lr']))
+    runner, metrics, _ = algo.update(runner, params, train_actor=False)
+    assert float(metrics['actor_updates']) == 0

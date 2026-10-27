@@ -6,10 +6,17 @@ Examples:
   python play_marl.py --load experiments/marl_4robots/checkpoint
   python play_marl.py --load experiments/marl_4robots/checkpoint --num_agents 8 --map 5
   python play_marl.py --load experiments/marl_4robots/checkpoint --maps "maps/giant_mowing_*.png"
+  python play_marl.py --load experiments/seeds/mappo_s0/checkpoint --maps "maps/test_*.png" "maps/eval_*.png"
+  python play_marl.py --load experiments/seeds/mappo_s0/checkpoint --maps maps/corridor_120m_0.6m.png --num_agents 1 --start 60.15 60 0
+
+Maps are grouped by the canvas size they need, and one simulation is compiled
+per canvas size (the first time a map of that size is shown), so small maps
+stay fast when large maps are also loaded.
 
 Keys:
   space        pause / resume
-  right arrow  one step (when paused)
+  right / left next / previous map (new episode)
+  .            one step (when paused)
   s / a        faster / slower (x1 = real time)
   n / p        next / previous map
   r            restart the episode on the same map
@@ -55,7 +62,7 @@ import pygame
 from marl.config import EnvConfig
 from marl.env import EnvParams, MultiMowerEnv, frontier_map
 from marl.maps import build_bank, canvas_size_for, eval_map_files, load_map
-from marl.mappo import load_checkpoint, make_networks
+from marl.mappo import actor_apply, load_checkpoint, make_networks
 
 ROBOT_COLORS = [(228, 26, 28), (55, 126, 184), (255, 127, 0), (152, 78, 163),
                 (166, 86, 40), (247, 129, 191), (77, 175, 74), (0, 160, 160)]
@@ -83,11 +90,16 @@ NEXT_MAP_DELAY = 3.0  # seconds the final state is shown before the next map
 class Simulation:
     """Single environment with the policy, on the JAX device"""
 
-    def __init__(self, env_cfg, actor, actor_params, env_params):
+    def __init__(self, env_cfg, actor, actor_params, env_params, start=None):
         self.env = MultiMowerEnv(env_cfg)
         self.cfg = env_cfg
         env = self.env
         N = env_cfg.num_agents
+        if start is not None:
+            # fixed start poses (x, y [m], heading [degrees] per robot) instead of the random spawn
+            start = np.asarray(start, dtype=np.float32).reshape(N, 3)
+            pos, heading = jnp.asarray(start[:, :2]), jnp.asarray(np.radians(start[:, 2]))
+            env._spawn = lambda key, blocked, size: (pos, heading)
 
         @jax.jit
         def reset(key, map_logits):
@@ -97,7 +109,7 @@ class Simulation:
         @jax.jit
         def step(key, obs, state, deterministic):
             k_act, k_step, k_obs = jax.random.split(key, 3)
-            mean, log_std = actor.apply(actor_params, obs['maps'], obs['lidar'])
+            mean, log_std = actor_apply(actor, actor_params, obs)
             noise = jnp.exp(log_std) * jax.random.normal(k_act, mean.shape)
             action = jnp.where(deterministic, mean, mean + noise)
             # no automatic reset, so that the final state can be shown
@@ -140,11 +152,34 @@ class Simulation:
         return np.asarray(self._map_codes(self.state, robot, belief))
 
 
+class Simulations:
+    """One Simulation per canvas size, built the first time a map of that size is shown"""
+
+    def __init__(self, env_cfg, actor, actor_params, maps, goal_coverage, start=None):
+        self.env_cfg, self.actor, self.actor_params = env_cfg, actor, actor_params
+        self.maps, self.goal_coverage, self.start = maps, goal_coverage, start
+        self.canvas = [canvas_size_for([m[0].shape[0]], env_cfg) for m in maps]
+        self._sims = {}
+
+    def get(self, map_idx):
+        """(Simulation, index of the map in its bank, number of maps in the bank)"""
+        S = self.canvas[map_idx]
+        members = [i for i, c in enumerate(self.canvas) if c == S]
+        if S not in self._sims:
+            cfg = EnvConfig.from_dict({**self.env_cfg.to_dict(), 'canvas_size': S})
+            bank = build_bank([self.maps[i] for i in members], cfg)
+            params = EnvParams(bank=bank, map_logits=jnp.zeros(len(members)),
+                               goal_coverage=jnp.float32(self.goal_coverage))
+            print(f'compiling the simulation for canvas {S} ({len(members)} maps)', flush=True)
+            self._sims[S] = Simulation(cfg, self.actor, self.actor_params, params, self.start)
+        return self._sims[S], members.index(map_idx), len(members)
+
+
 class Viewer:
 
-    def __init__(self, sim: Simulation, map_names, map_sizes, args):
-        self.sim = sim
-        self.cfg = sim.cfg
+    def __init__(self, sims: Simulations, map_names, map_sizes, args):
+        self.sims = sims
+        self.cfg = sims.env_cfg
         self.map_names = map_names
         self.map_sizes = map_sizes
         self.args = args
@@ -166,7 +201,7 @@ class Viewer:
         self.panel_rect = pygame.Rect(self.map_rect.right + margin, margin, panel_w, args.window)
         pygame.init()
         self.screen = pygame.display.set_mode((self.panel_rect.right + margin, args.window + 2 * margin))
-        pygame.display.set_caption('MARL mowing - [space] pause [s/a] speed [n/p] map [tab] robot '
+        pygame.display.set_caption('MARL mowing - [space] pause [s/a] speed [right/left] map [tab] robot '
                                    '[c] crops [m] scales [q] quit')
         self.font = pygame.font.SysFont('dejavusansmono,menlo,couriernew,monospace', 14)
         self.label_font = pygame.font.SysFont('dejavuserif,timesnewroman,times,serif', 14)
@@ -177,7 +212,9 @@ class Viewer:
 
     def new_episode(self):
         self.key, k = jax.random.split(self.key)
-        self.sim.reset(k, self.map_idx, len(self.map_names))
+        self.sim, local_idx, num_local = self.sims.get(self.map_idx)
+        self.cfg = self.sim.cfg
+        self.sim.reset(k, local_idx, num_local)
         pos = np.asarray(self.sim.state.pos) * self.cfg.pixels_per_meter
         self.paths = [[tuple(p)] for p in pos]
         self.done = False
@@ -243,7 +280,11 @@ class Viewer:
                 raise SystemExit
             elif key == pygame.K_SPACE:
                 self.paused = not self.paused
-            elif key == pygame.K_RIGHT and self.paused and not self.done:
+            elif key == pygame.K_RIGHT:
+                self.change_map(1)
+            elif key == pygame.K_LEFT:
+                self.change_map(-1)
+            elif key == pygame.K_PERIOD and self.paused and not self.done:
                 self.step()
             elif key == pygame.K_s:
                 self.speed_idx = (self.speed_idx + 1) % len(SPEEDS)
@@ -510,7 +551,8 @@ class Viewer:
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--load', required=True, type=str, help='checkpoint directory')
-    parser.add_argument('--maps', default=None, type=str, help='glob of map images (default: mowing evaluation maps)')
+    parser.add_argument('--maps', nargs='+', default=None,
+                        help='globs of map images (default: mowing evaluation maps)')
     parser.add_argument('--map', default=0, type=int, help='index of the first map')
     parser.add_argument('--num_agents', default=None, type=int, help='default: as in training')
     parser.add_argument('--comm_range', default=None, type=float,
@@ -521,15 +563,17 @@ def main():
     parser.add_argument('--speed', default=4, type=float, help='initial speed, multiple of real time')
     parser.add_argument('--window', default=800, type=int, help='side of the map view [pixels]')
     parser.add_argument('--seed', default=0, type=int)
+    parser.add_argument('--start', nargs='+', default=None, type=float,
+                        help='fixed start poses instead of the random spawn: x y heading (meters, degrees) per robot')
     args = parser.parse_args()
 
     params, env_cfg, train_cfg = load_checkpoint(args.load)
-    files = sorted(glob.glob(args.maps)) if args.maps else eval_map_files()
+    files = [f for p in args.maps for f in sorted(glob.glob(p))] if args.maps else eval_map_files()
+    files = list(dict.fromkeys(files))
     assert len(files) > 0, 'No maps found'
     maps = [load_map(f) for f in files]
     overrides = env_cfg.to_dict()
     overrides.update(
-        canvas_size=canvas_size_for([m[0].shape[0] for m in maps], env_cfg),
         max_episode_steps=args.max_steps,
         max_non_new_steps=args.max_steps)
     if args.num_agents is not None:
@@ -539,11 +583,11 @@ def main():
     env_cfg = EnvConfig.from_dict(overrides)
 
     actor, _ = make_networks(env_cfg, train_cfg)
-    bank = build_bank(maps, env_cfg)
-    env_params = EnvParams(bank=bank, map_logits=jnp.zeros(len(maps)), goal_coverage=jnp.float32(args.goal_coverage))
     print(f'{len(files)} maps, {env_cfg.num_agents} robots, JAX device {jax.devices()[0]}', flush=True)
-    sim = Simulation(env_cfg, actor, params['actor'], env_params)
-    viewer = Viewer(sim, [os.path.basename(f) for f in files], [m[0].shape[0] for m in maps], args)
+    if args.start is not None:
+        assert len(args.start) == 3 * env_cfg.num_agents, '--start needs x y heading for each robot'
+    sims = Simulations(env_cfg, actor, params['actor'], maps, args.goal_coverage, args.start)
+    viewer = Viewer(sims, [os.path.basename(f) for f in files], [m[0].shape[0] for m in maps], args)
     try:
         viewer.run()
     except SystemExit:

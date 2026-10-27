@@ -1,0 +1,2 @@
+# test MARL JAX CPU MAPPO CTDE 8 agenti
+JAX_PLATFORMS=cpu .venv-marl/bin/python play_marl.py --load experiments/mappo_sb3_v2/checkpoint_best --num_agents 8

@@ -1,7 +1,7 @@
 """
 Draw the comparison dashboard (PDF) from the data collected by collect_marl.py.
 
-  python dashboard_marl.py --data results/eval
+  python dashboard_marl.py --data results/eval     # all map sets in results/eval/*/
   python dashboard_marl.py --data results/eval --map_sets test_large --ref_agents 8
 
 Two pages per map set:
@@ -87,6 +87,29 @@ class Recorder:
                 writer.writerows(rows)
         with open(os.path.join(directory, 'info.json'), 'w') as f:
             json.dump(info, f, indent=2)
+
+
+def load(data_dir):
+    """
+    episodes, curves and runs.json of data_dir, or merged over its
+    subdirectories when it has no episodes.csv (map sets collected in parallel,
+    see eval_seeds.sh)
+    """
+    if os.path.exists(os.path.join(data_dir, 'episodes.csv')):
+        dirs = [data_dir]
+    else:
+        dirs = sorted(os.path.join(data_dir, d) for d in os.listdir(data_dir)
+                      if os.path.exists(os.path.join(data_dir, d, 'episodes.csv')))
+    episodes, curves, meta = [], [], {'methods': {}, 'map_sets': {}}
+    for d in dirs:
+        episodes += read_csv(os.path.join(d, 'episodes.csv'))
+        curves += read_csv(os.path.join(d, 'curves.csv'))
+        if os.path.exists(os.path.join(d, 'runs.json')):
+            m = json.load(open(os.path.join(d, 'runs.json')))
+            for k, v in m.get('methods', {}).items():
+                meta['methods'].setdefault(k, v)
+            meta['map_sets'].update(m.get('map_sets', {}))
+    return episodes, curves, meta, dirs
 
 
 def read_csv(path):
@@ -471,17 +494,14 @@ def draw_dashboard(data_dir, out, ref_agents=None, map_sets=None, threshold=None
     plt.rcParams['font.family'] = 'sans-serif'
     plt.rcParams['font.sans-serif'] = FONT
 
-    episodes = read_csv(os.path.join(data_dir, 'episodes.csv'))
-    curves = read_csv(os.path.join(data_dir, 'curves.csv'))
-    meta_file = os.path.join(data_dir, 'runs.json')
-    meta = json.load(open(meta_file)) if os.path.exists(meta_file) else {}
+    episodes, curves, meta, dirs = load(data_dir)
     assert episodes, f'no data in {data_dir}'
     all_methods = list(meta.get('methods', {}))
     all_methods += sorted({r['method'] for r in episodes} - set(all_methods))
     colors = {m: SERIES[i % len(SERIES)] for i, m in enumerate(all_methods)}
     sets = map_sets or list(dict.fromkeys(r['map_set'] for r in episodes))
     recorder = Recorder()
-    info = dict(data_dir=os.path.abspath(data_dir), pdf=os.path.abspath(out), created=time.strftime('%Y-%m-%d %H:%M'),
+    info = dict(data_dirs=[os.path.abspath(d) for d in dirs], pdf=os.path.abspath(out), created=time.strftime('%Y-%m-%d %H:%M'),
                 units='fractions (not percent), times in minutes', map_sets={})
 
     with PdfPages(out) as pdf:

@@ -33,18 +33,28 @@ class EnvConfig:
     :param all_unknown: Whether all obstacles are initially unknown
     :param overlap_observation: Use overlap (True) or binary coverage (False) in the observation
     :param frontier_observation: Whether to use a frontier map as observation
-    :param robot_observation: Whether to use a map of the other robots as observation
+    :param robot_observation: Whether to use a map of the other robots as
+        observation channel (legacy, superseded by neighbor_observation)
+    :param neighbor_observation: Whether the other robots are observed as a
+        set of relative poses (see MultiMowerEnv), encoded by a permutation
+        invariant network, so that the same parameters work for any number of
+        robots. The global maps of the critic then have no robot channel, the
+        critic gets the poses of all robots as a set instead
     :param comm_range: Communication range between robots [m]. 0: unlimited,
         all robots share one global map. > 0: each robot keeps its own belief
         of the coverage and known obstacle maps, built from its own coverage
         and lidar, and the beliefs of the robots that are connected (directly
         within comm_range, or through other robots) are merged with OR (max of
-        the overlap counts) every step. The robot map of the observation then
-        only shows the connected robots
+        the overlap counts) every step. The robots in the observation are
+        then only the connected ones
     :param obstacle_dilation: Dilation kernel size around obstacles (metrics, frontier)
     :param global_size: Size of the global maps given to the centralized critic
     :param max_episode_steps: Maximum episode length
     :param max_non_new_steps: Maximum steps in a row in which no robot covered new ground
+    :param flip_when_stuck: Whether to turn a robot by 180 degrees when it collided
+        max_stuck_steps times in a row, as in rlm.mower_env.MowerEnv (used to
+        evaluate policies that cannot get out of deadlocks by themselves)
+    :param max_stuck_steps: Collisions in a row before flipping the robot
     :param goal_coverage_reward: Reward for reaching the target coverage
     :param wall_collision_reward: Reward for wall collision
     :param obstacle_collision_reward: Reward for obstacle collision
@@ -86,12 +96,15 @@ class EnvConfig:
     all_unknown: bool = True
     overlap_observation: bool = True
     frontier_observation: bool = True
-    robot_observation: bool = True
+    robot_observation: bool = False
+    neighbor_observation: bool = True
     comm_range: float = 0
     obstacle_dilation: int = 9
     global_size: int = 64
     max_episode_steps: int = 2000
     max_non_new_steps: int = 1000
+    flip_when_stuck: bool = False
+    max_stuck_steps: int = 5
     goal_coverage_reward: float = 0
     wall_collision_reward: float = -10
     obstacle_collision_reward: float = -10
@@ -162,8 +175,23 @@ class EnvConfig:
 
     @property
     def global_channels(self):
-        # coverage, true obstacles, known obstacles, all robots
-        return 4
+        # coverage, true obstacles, known obstacles, all robots (without neighbor_observation)
+        return 3 + int(not self.neighbor_observation)
+
+    @property
+    def neighbor_features(self):
+        # bearing (2), closeness at the extent of each scale, relative heading (2)
+        return 4 + self.num_maps
+
+    @property
+    def progress_features(self):
+        # goal coverage, steps without new coverage / max_non_new_steps
+        return 2
+
+    @property
+    def team_features(self):
+        # neighbor features (true poses), absolute position / canvas size (2)
+        return self.neighbor_features + 2
 
     @property
     def agent_features(self):
@@ -198,6 +226,12 @@ class TrainConfig:
                observation only, the same inputs as the actor
     In both cases the parameters are shared between the robots.
 
+    critic_state selects the input of the centralized critic of MAPPO:
+      'global':         global state only: global maps, poses of all robots,
+                        episode progress (marl.networks.GlobalCritic)
+      'agent_specific': global state together with each robot's own local
+                        observation, as in the MAPPO paper (marl.networks.Critic)
+
     The number of agent samples per update is num_envs * num_steps * num_agents,
     they are split into minibatches of minibatch_size agent samples (all
     robots of minibatch_size / num_agents environment steps), so the memory
@@ -207,8 +241,22 @@ class TrainConfig:
     The first minibatch is never stopped: its KL is measured before any update
     and is only numerical noise (TF32 convolutions with other batch sizes).
     squash_mean and min_log_std: see marl.networks.Actor.
+    adaptive_lr: the learning rate of the actor starts at actor_lr and is
+    adapted after each iteration from its final KL, to keep it near target_kl
+    (see marl.mappo.MAPPO._adapt_actor_lr), instead of annealing it (the
+    critic still uses anneal_lr). Useful with a sharp (nearly deterministic)
+    initial policy, e.g. from init_from_sb3.py, where a fixed learning rate
+    either freezes the actor (KL early stopping after the first minibatch)
+    or moves it too far.
+    critic_warmup: number of first iterations that only train the critic,
+    with the actor frozen, e.g. when the actor is initialized from a trained
+    policy (init_from_sb3.py) and the critic is new: the advantages of an
+    untrained critic would otherwise move the actor away from it.
+    neighbor_dims, neighbor_layers, neighbor_heads: width, number of
+    transformer blocks and attention heads of marl.networks.PoseEncoder.
     """
     algo: str = 'mappo'
+    critic_state: str = 'global'
     seed: int = 0
     num_envs: int = 256
     num_steps: int = 128
@@ -225,9 +273,16 @@ class TrainConfig:
     update_epochs: int = 4
     minibatch_size: int = 8192
     target_kl: float = 0.02
+    critic_warmup: int = 0
+    adaptive_lr: bool = False
+    min_actor_lr: float = 1e-6
+    max_actor_lr: float = 1e-3
     huber_delta: float = 10.0
     use_value_norm: bool = True
     hidden_dims: int = 256
+    neighbor_dims: int = 64
+    neighbor_layers: int = 2
+    neighbor_heads: int = 4
     grouped_convs: bool = True
     init_log_std: float = -0.5
     squash_mean: bool = True
@@ -241,6 +296,8 @@ class TrainConfig:
 
     def __post_init__(self):
         assert self.algo in ('mappo', 'ippo'), "algo must be 'mappo' or 'ippo'"
+        assert self.critic_state in ('global', 'agent_specific'), "critic_state must be 'global' or 'agent_specific'"
+        assert not self.adaptive_lr or self.target_kl > 0, 'adaptive_lr needs target_kl > 0'
 
     @property
     def centralized_critic(self):

@@ -27,7 +27,7 @@ from PIL import Image, ImageDraw
 from marl.config import EnvConfig
 from marl.env import EnvParams, MultiMowerEnv
 from marl.maps import build_bank, canvas_size_for, eval_map_files, load_map
-from marl.mappo import load_checkpoint, make_networks
+from marl.mappo import actor_apply, load_checkpoint, make_networks
 
 COLORS = [(228, 26, 28), (55, 126, 184), (255, 127, 0), (152, 78, 163),
           (166, 86, 40), (247, 129, 191), (77, 175, 74), (0, 160, 160)]
@@ -55,9 +55,7 @@ def run_episodes(env, actor, actor_params, env_params, map_ids, key, max_steps, 
         def body(carry, k):
             obs, state = carry
             k_act, k_env = jax.random.split(k)
-            maps = obs['maps'].reshape((E * N,) + obs['maps'].shape[2:])
-            lidar = obs['lidar'].reshape(E * N, -1)
-            mean, log_std = actor.apply(actor_params, maps, lidar)
+            mean, log_std = actor_apply(actor, actor_params, obs)
             action = mean if deterministic else mean + jnp.exp(log_std) * jax.random.normal(k_act, mean.shape)
             pos = state.pos
             obs, state, _, done, info = step(jax.random.split(k_env, E), state, action.reshape(E, N, -1), params)

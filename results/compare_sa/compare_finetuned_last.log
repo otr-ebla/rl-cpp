@@ -1,0 +1,24 @@
+2026-10-24 16:13:23 test_small started
+map set test_small: 100 maps x 3 episodes, robots [1, 2, 4, 8], 1 checkpoints, JAX device cuda:0
+Single-agent fine-tuned xN + flip seed 0  N=1  success 1.00  coverage 0.990  time_99   492.9 s  overlap_99  37.9 %  robot coll.   0.0  (32 s, total 1 min)
+Single-agent fine-tuned xN + flip seed 0  N=2  success 0.91  coverage 0.966  time_99   398.8 s  overlap_99  51.6 %  robot coll. 943.0  (25 s, total 1 min)
+Single-agent fine-tuned xN + flip seed 0  N=4  success 1.00  coverage 0.990  time_99   262.2 s  overlap_99  72.0 %  robot coll. 586.9  (33 s, total 2 min)
+Single-agent fine-tuned xN + flip seed 0  N=8  success 1.00  coverage 0.991  time_99   156.2 s  overlap_99 110.3 %  robot coll. 789.0  (51 s, total 2 min)
+2026-10-24 16:15:49 test_small done
+2026-10-24 16:15:49 test_large started
+map set test_large: 100 maps x 3 episodes, robots [1, 2, 4, 8], 1 checkpoints, JAX device cuda:0
+Single-agent fine-tuned xN + flip seed 0  N=1  success 1.00  coverage 0.949  time_95  5790.2 s  overlap_95  20.9 %  robot coll.   0.0  (191 s, total 3 min)
+Single-agent fine-tuned xN + flip seed 0  N=2  success 0.79  coverage 0.888  time_95  3494.3 s  overlap_95  24.1 %  robot coll. 6777.8  (232 s, total 7 min)
+Single-agent fine-tuned xN + flip seed 0  N=4  success 0.98  coverage 0.947  time_95  2009.4 s  overlap_95  27.1 %  robot coll. 3146.0  (266 s, total 12 min)
+Single-agent fine-tuned xN + flip seed 0  N=8  success 1.00  coverage 0.950  time_95  1090.8 s  overlap_95  34.2 %  robot coll. 2579.0  (73 s, total 13 min)
+2026-10-24 16:28:37 test_large done
+2026-10-24 16:28:37 paper started
+map set paper: 38 maps x 3 episodes, robots [1, 2, 4, 8], 1 checkpoints, JAX device cuda:0
+Single-agent fine-tuned xN + flip seed 0  N=1  success 0.96  coverage 0.948  time_95  5158.4 s  overlap_95  18.0 %  robot coll.   0.0  (240 s, total 4 min)
+Single-agent fine-tuned xN + flip seed 0  N=2  success 0.85  coverage 0.890  time_95  3466.8 s  overlap_95  21.2 %  robot coll. 6499.9  (240 s, total 8 min)
+Single-agent fine-tuned xN + flip seed 0  N=4  success 0.96  coverage 0.943  time_95  2107.2 s  overlap_95  27.5 %  robot coll. 5034.2  (260 s, total 12 min)
+Single-agent fine-tuned xN + flip seed 0  N=8  success 1.00  coverage 0.950  time_95  1131.4 s  overlap_95  39.4 %  robot coll. 2503.3  (71 s, total 14 min)
+2026-10-24 16:42:11 paper done
+dashboard: results/compare_sa/dashboard.pdf
+data shown in the dashboard: results/compare_sa/dashboard_data
+2026-10-24 16:42:19 dashboard: results/compare_sa/dashboard.pdf
