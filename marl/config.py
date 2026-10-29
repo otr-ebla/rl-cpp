@@ -252,6 +252,9 @@ class TrainConfig:
     with the actor frozen, e.g. when the actor is initialized from a trained
     policy (init_from_sb3.py) and the critic is new: the advantages of an
     untrained critic would otherwise move the actor away from it.
+    stop_update: stops the training after this update (0: off), with the
+    learning rates still annealed over total_steps, e.g. to give another run
+    the same budget as a run that was stopped before total_steps.
     neighbor_dims, neighbor_layers, neighbor_heads: width, number of
     transformer blocks and attention heads of marl.networks.PoseEncoder.
     """
@@ -261,6 +264,7 @@ class TrainConfig:
     num_envs: int = 256
     num_steps: int = 128
     total_steps: int = 200_000_000
+    stop_update: int = 0
     actor_lr: float = 1e-4
     critic_lr: float = 3e-4
     anneal_lr: bool = True

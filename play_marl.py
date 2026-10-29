@@ -8,6 +8,7 @@ Examples:
   python play_marl.py --load experiments/marl_4robots/checkpoint --maps "maps/giant_mowing_*.png"
   python play_marl.py --load experiments/seeds/mappo_s0/checkpoint --maps "maps/test_*.png" "maps/eval_*.png"
   python play_marl.py --load experiments/seeds/mappo_s0/checkpoint --maps maps/corridor_120m_0.6m.png --num_agents 1 --start 60.15 60 0
+  python play_marl.py --load experiments/ippo_sb3_v2/checkpoint --scale_factor 3
 
 Maps are grouped by the canvas size they need, and one simulation is compiled
 per canvas size (the first time a map of that size is shown), so small maps
@@ -565,6 +566,9 @@ def main():
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--start', nargs='+', default=None, type=float,
                         help='fixed start poses instead of the random spawn: x y heading (meters, degrees) per robot')
+    parser.add_argument('--scale_factor', default=None, type=int,
+                        help='scale factor between the multi-scale maps (default: as in training), '
+                             'same network, the maps only cover another area')
     args = parser.parse_args()
 
     params, env_cfg, train_cfg = load_checkpoint(args.load)
@@ -580,6 +584,14 @@ def main():
         overrides['num_agents'] = args.num_agents
     if args.comm_range is not None:
         overrides['comm_range'] = args.comm_range
+    if args.scale_factor is not None:
+        overrides['scale_factor'] = args.scale_factor
+        # the global maps are only seen by the critic: keep the canvas small
+        m = args.scale_factor ** (env_cfg.num_maps - 1)
+        if env_cfg.global_size % m != 0:
+            overrides['global_size'] = m
+        # any valid canvas, the canvas of each map is set by Simulations
+        overrides['canvas_size'] = math.lcm(m, overrides['global_size'])
     env_cfg = EnvConfig.from_dict(overrides)
 
     actor, _ = make_networks(env_cfg, train_cfg)

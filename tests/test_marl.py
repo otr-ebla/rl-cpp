@@ -425,6 +425,23 @@ def test_ippo_from_mappo_checkpoint(tmp_path):
     assert 'MultiScaleEncoder_0' in runner.critic.params['params']
 
 
+def test_stop_update(tmp_path):
+    """stop_update ends the training early, the last update is logged and saved"""
+    import json
+    from unittest import mock
+    from marl.mappo import train
+    env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8)
+    train_cfg = TrainConfig(num_envs=2, num_steps=8, total_steps=160, stop_update=3, minibatch_size=16,
+                            hidden_dims=32, save_every=50, num_random_maps=0)
+    maps = (build_bank([empty_map()], env_cfg), None, np.array([0]), np.zeros(1, bool), np.zeros(1, bool))
+    with mock.patch('marl.mappo.make_training_maps', lambda *a, **k: maps):
+        train(env_cfg, train_cfg, str(tmp_path), verbose=False)
+    with open(tmp_path / 'progress.csv') as f:
+        assert f.read().splitlines()[-1].startswith('3,')
+    with open(tmp_path / 'checkpoint' / 'config.json') as f:
+        assert json.load(f)['update'] == 3
+
+
 def test_config_from(tmp_path):
     """train_marl.py --config_from: the settings of another run are the defaults, the command line wins"""
     import json

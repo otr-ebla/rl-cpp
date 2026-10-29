@@ -5,7 +5,7 @@
     "/home/alberto_vaglio/rl-cpp/results/compare_sa/test_small"
   ],
   "pdf": "/home/alberto_vaglio/rl-cpp/results/compare_sa/dashboard.pdf",
-  "created": "2026-10-24 16:42",
+  "created": "2026-10-28 18:19",
   "units": "fractions (not percent), times in minutes",
   "map_sets": {
     "paper": {
@@ -24,7 +24,10 @@
         "MAPPO",
         "MAPPO + flip",
         "MAPPO (last)",
-        "Single-agent fine-tuned xN + flip"
+        "Single-agent fine-tuned xN + flip",
+        "IPPO",
+        "IPPO + flip",
+        "IPPO (last)"
       ],
       "seeds": {
         "Single-agent xN": [
@@ -43,6 +46,15 @@
           0
         ],
         "Single-agent fine-tuned xN + flip": [
+          0
+        ],
+        "IPPO": [
+          0
+        ],
+        "IPPO + flip": [
+          0
+        ],
+        "IPPO (last)": [
           0
         ]
       },
@@ -64,7 +76,10 @@
         "MAPPO",
         "MAPPO + flip",
         "MAPPO (last)",
-        "Single-agent fine-tuned xN + flip"
+        "Single-agent fine-tuned xN + flip",
+        "IPPO",
+        "IPPO + flip",
+        "IPPO (last)"
       ],
       "seeds": {
         "Single-agent xN": [
@@ -83,6 +98,15 @@
           0
         ],
         "Single-agent fine-tuned xN + flip": [
+          0
+        ],
+        "IPPO": [
+          0
+        ],
+        "IPPO + flip": [
+          0
+        ],
+        "IPPO (last)": [
           0
         ]
       },
@@ -104,7 +128,10 @@
         "MAPPO",
         "MAPPO + flip",
         "MAPPO (last)",
-        "Single-agent fine-tuned xN + flip"
+        "Single-agent fine-tuned xN + flip",
+        "IPPO",
+        "IPPO + flip",
+        "IPPO (last)"
       ],
       "seeds": {
         "Single-agent xN": [
@@ -123,6 +150,15 @@
           0
         ],
         "Single-agent fine-tuned xN + flip": [
+          0
+        ],
+        "IPPO": [
+          0
+        ],
+        "IPPO + flip": [
+          0
+        ],
+        "IPPO (last)": [
           0
         ]
       },

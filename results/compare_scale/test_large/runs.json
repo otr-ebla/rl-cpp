@@ -1,0 +1,25 @@
+{
+  "methods": {
+    "IPPO scale 2": {
+      "checkpoints": [
+        "experiments/ippo_sb3_v2/checkpoint_best"
+      ],
+      "overrides": {
+        "scale_factor": 2
+      },
+      "comm_range": 0
+    }
+  },
+  "map_sets": {
+    "test_large": {
+      "maps": 100,
+      "episodes": 3,
+      "goal_coverage": 0.95,
+      "max_steps": 30000,
+      "seed": 0,
+      "globs": [
+        "maps/test_large_*.png"
+      ]
+    }
+  }
+}

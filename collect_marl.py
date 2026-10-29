@@ -53,6 +53,7 @@ import os
 import re
 import time
 from argparse import BooleanOptionalAction
+from types import SimpleNamespace
 
 # Only allocate the GPU memory that is needed
 os.environ.setdefault('XLA_PYTHON_CLIENT_PREALLOCATE', 'false')
@@ -186,7 +187,8 @@ class Evaluator:
     def env_config(self, env_cfg, overrides, num_agents):
         cfg = env_cfg.to_dict()
         cfg.update(overrides)
-        cfg.update(canvas_size=canvas_size_for(self.map_sizes, env_cfg), num_agents=num_agents,
+        # canvas of the overridden configuration (scale_factor, global_size)
+        cfg.update(canvas_size=canvas_size_for(self.map_sizes, SimpleNamespace(**cfg)), num_agents=num_agents,
                    max_episode_steps=self.args.max_steps, max_non_new_steps=self.args.max_steps)
         return EnvConfig.from_dict(cfg)
 

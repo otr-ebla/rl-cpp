@@ -536,7 +536,8 @@ def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', c
         print(f'{train_cfg.algo.upper()}: {algo.num_updates} updates of {steps_per_update} environment steps '
               f'({steps_per_update * env_cfg.num_agents} agent steps)', flush=True)
 
-    for update in range(1, algo.num_updates + 1):
+    last_update = min(algo.num_updates, train_cfg.stop_update or algo.num_updates)
+    for update in range(1, last_update + 1):
         runner, metrics, infos = algo.update(runner, params, train_actor=update > train_cfg.critic_warmup)
 
         # Episode statistics and curriculum (on the host)
@@ -555,7 +556,7 @@ def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', c
         if level_changed or regenerate:
             params = env_params()
 
-        if update % train_cfg.log_every == 0 or update == algo.num_updates:
+        if update % train_cfg.log_every == 0 or update == last_update:
             now = time.time()
             n_done = int(done.sum())
             ep = lambda k: float(infos[k][done].mean()) if n_done > 0 else float('nan')
@@ -590,7 +591,7 @@ def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', c
                       f"entropy {metrics['entropy']:.3f}" +
                       (f"  actor_lr {metrics['actor_lr']:.2e}" if 'actor_lr' in metrics else ''), flush=True)
 
-        if update % train_cfg.save_every == 0 or update == algo.num_updates:
+        if update % train_cfg.save_every == 0 or update == last_update:
             save_checkpoint(os.path.join(logdir, 'checkpoint'), runner, env_cfg, train_cfg,
                             extra={'update': update, 'level': curriculum.level})
 

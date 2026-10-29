@@ -265,6 +265,144 @@ paper,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.89,0.21855728060
 paper,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.91,0.23041268738738277,0.20682646772027985,0.2539989070544857
 paper,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.93,0.24577725776716283,0.22001147760636638,0.27154303792795925
 paper,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.95,0.2720211122773195,0.24236628886168718,0.30167593569295187
+paper,overlap_vs_coverage,IPPO,4,0.05,0.0474924757084074,0.039018115077317055,0.05596683633949775
+paper,overlap_vs_coverage,IPPO,4,0.07,0.05548099224177892,0.04632668033919544,0.06463530414436242
+paper,overlap_vs_coverage,IPPO,4,0.09,0.0627026942031654,0.05353942497636142,0.0718659634299694
+paper,overlap_vs_coverage,IPPO,4,0.11,0.068972876511939,0.05996014410933542,0.07798560891454256
+paper,overlap_vs_coverage,IPPO,4,0.13,0.07358692981008637,0.0645595233971018,0.08261433622307093
+paper,overlap_vs_coverage,IPPO,4,0.15,0.07817977506732732,0.0692069083234422,0.08715264181121243
+paper,overlap_vs_coverage,IPPO,4,0.17,0.0827385690553408,0.0737672200181138,0.0917099180925678
+paper,overlap_vs_coverage,IPPO,4,0.19,0.08648150861916834,0.07750430161454608,0.0954587156237906
+paper,overlap_vs_coverage,IPPO,4,0.21,0.09173163662158083,0.08269256167846209,0.10077071156469958
+paper,overlap_vs_coverage,IPPO,4,0.23,0.09776814569506728,0.0891191651715212,0.10641712621861336
+paper,overlap_vs_coverage,IPPO,4,0.25,0.10243155991887314,0.09428131604432217,0.1105818037934241
+paper,overlap_vs_coverage,IPPO,4,0.27,0.10507779344589564,0.09697796942730687,0.11317761746448442
+paper,overlap_vs_coverage,IPPO,4,0.29,0.10750503228617866,0.09975803672095551,0.11525202785140182
+paper,overlap_vs_coverage,IPPO,4,0.31,0.11109029406910402,0.10314781147724647,0.11903277666096157
+paper,overlap_vs_coverage,IPPO,4,0.33,0.11458674102629486,0.10706955575892507,0.12210392629366465
+paper,overlap_vs_coverage,IPPO,4,0.35,0.1184307961283546,0.11089424934840794,0.12596734290830125
+paper,overlap_vs_coverage,IPPO,4,0.37,0.12336612777098228,0.115018924694599,0.13171333084736556
+paper,overlap_vs_coverage,IPPO,4,0.39,0.125891823092835,0.11712420289021527,0.13465944329545473
+paper,overlap_vs_coverage,IPPO,4,0.41,0.1290836033917833,0.11944116080658651,0.13872604597698007
+paper,overlap_vs_coverage,IPPO,4,0.43,0.13394738047530777,0.12255516747514084,0.1453395934754747
+paper,overlap_vs_coverage,IPPO,4,0.45,0.13857006278346504,0.1254992563869949,0.15164086917993516
+paper,overlap_vs_coverage,IPPO,4,0.47,0.14429791902371666,0.12887365533454753,0.1597221827128858
+paper,overlap_vs_coverage,IPPO,4,0.49,0.14901747861713693,0.13285766116453168,0.16517729606974219
+paper,overlap_vs_coverage,IPPO,4,0.51,0.15386456411266536,0.13712651892510616,0.17060260930022456
+paper,overlap_vs_coverage,IPPO,4,0.53,0.15925305918381927,0.14183683324567892,0.17666928512195962
+paper,overlap_vs_coverage,IPPO,4,0.55,0.16419997242720505,0.14634380501844102,0.18205613983596908
+paper,overlap_vs_coverage,IPPO,4,0.57,0.16895900026225205,0.1506716096637248,0.1872463908607793
+paper,overlap_vs_coverage,IPPO,4,0.59,0.17397730745244444,0.15552289263967384,0.19243172226521504
+paper,overlap_vs_coverage,IPPO,4,0.61,0.17757864316043098,0.15859902485485747,0.1965582614660045
+paper,overlap_vs_coverage,IPPO,4,0.63,0.18101020405689877,0.1618797494103897,0.20014065870340783
+paper,overlap_vs_coverage,IPPO,4,0.65,0.1861379607989077,0.16734172078122772,0.2049342008165877
+paper,overlap_vs_coverage,IPPO,4,0.67,0.19073092996289856,0.1717568101682717,0.2097050497575254
+paper,overlap_vs_coverage,IPPO,4,0.69,0.19658173895195913,0.17678386544962416,0.2163796124542941
+paper,overlap_vs_coverage,IPPO,4,0.71,0.20213185348793075,0.1810448165285781,0.2232188904472834
+paper,overlap_vs_coverage,IPPO,4,0.73,0.2093610710611469,0.18651454444057958,0.23220759768171423
+paper,overlap_vs_coverage,IPPO,4,0.75,0.2145465822857723,0.19076841413494602,0.2383247504365986
+paper,overlap_vs_coverage,IPPO,4,0.77,0.22176537669280116,0.19722071488319928,0.24631003850240304
+paper,overlap_vs_coverage,IPPO,4,0.79,0.22698601400643068,0.2022526833734967,0.2517193446393647
+paper,overlap_vs_coverage,IPPO,4,0.81,0.2326813221239207,0.2072781961627441,0.25808444808509734
+paper,overlap_vs_coverage,IPPO,4,0.83,0.24016602801387768,0.213379933131616,0.2669521228961394
+paper,overlap_vs_coverage,IPPO,4,0.85,0.24863430230241068,0.21992176381075515,0.2773468407940662
+paper,overlap_vs_coverage,IPPO,4,0.87,0.2589900262915252,0.22964344037335377,0.2883366122096966
+paper,overlap_vs_coverage,IPPO,4,0.89,0.27083635676586837,0.24072999863823547,0.3009427148935013
+paper,overlap_vs_coverage,IPPO,4,0.91,0.284696520289831,0.25285050746769305,0.31654253311196895
+paper,overlap_vs_coverage,IPPO,4,0.93,0.3055434561612313,0.2698705938869188,0.3412163184355438
+paper,overlap_vs_coverage,IPPO,4,0.95,0.3288729271867819,0.2881200765763685,0.3696257777971953
+paper,overlap_vs_coverage,IPPO + flip,4,0.05,0.0474924757084074,0.039018115077317055,0.05596683633949775
+paper,overlap_vs_coverage,IPPO + flip,4,0.07,0.05548099224177892,0.04632668033919544,0.06463530414436242
+paper,overlap_vs_coverage,IPPO + flip,4,0.09,0.0627026942031654,0.05353942497636142,0.0718659634299694
+paper,overlap_vs_coverage,IPPO + flip,4,0.11,0.068972876511939,0.05996014410933542,0.07798560891454256
+paper,overlap_vs_coverage,IPPO + flip,4,0.13,0.07358692981008637,0.0645595233971018,0.08261433622307093
+paper,overlap_vs_coverage,IPPO + flip,4,0.15,0.07817977506732732,0.0692069083234422,0.08715264181121243
+paper,overlap_vs_coverage,IPPO + flip,4,0.17,0.0827385690553408,0.0737672200181138,0.0917099180925678
+paper,overlap_vs_coverage,IPPO + flip,4,0.19,0.08648150861916834,0.07750430161454608,0.0954587156237906
+paper,overlap_vs_coverage,IPPO + flip,4,0.21,0.09173163662158083,0.08269256167846209,0.10077071156469958
+paper,overlap_vs_coverage,IPPO + flip,4,0.23,0.09776814569506728,0.0891191651715212,0.10641712621861336
+paper,overlap_vs_coverage,IPPO + flip,4,0.25,0.10243155991887314,0.09428131604432217,0.1105818037934241
+paper,overlap_vs_coverage,IPPO + flip,4,0.27,0.10507779344589564,0.09697796942730687,0.11317761746448442
+paper,overlap_vs_coverage,IPPO + flip,4,0.29,0.10750503228617866,0.09975803672095551,0.11525202785140182
+paper,overlap_vs_coverage,IPPO + flip,4,0.31,0.11109029406910402,0.10314781147724647,0.11903277666096157
+paper,overlap_vs_coverage,IPPO + flip,4,0.33,0.11462254211175858,0.10710817392028434,0.12213691030323283
+paper,overlap_vs_coverage,IPPO + flip,4,0.35,0.11846502984694222,0.11093380250593098,0.1259962571879535
+paper,overlap_vs_coverage,IPPO + flip,4,0.37,0.12347515107116157,0.11514425956134194,0.1318060425809812
+paper,overlap_vs_coverage,IPPO + flip,4,0.39,0.1261051756967055,0.117368658413326,0.13484169298008503
+paper,overlap_vs_coverage,IPPO + flip,4,0.41,0.12931521017954015,0.11970791442159295,0.13892250593748734
+paper,overlap_vs_coverage,IPPO + flip,4,0.43,0.1340857256007822,0.12270607549627731,0.1454653757052871
+paper,overlap_vs_coverage,IPPO + flip,4,0.45,0.13862307248800468,0.1255541602448086,0.15169198473120077
+paper,overlap_vs_coverage,IPPO + flip,4,0.47,0.14434624453516384,0.12892387906269745,0.15976861000763024
+paper,overlap_vs_coverage,IPPO + flip,4,0.49,0.14906097706734087,0.13290375178677444,0.1652182023479073
+paper,overlap_vs_coverage,IPPO + flip,4,0.51,0.15391161753550955,0.13717804463880187,0.17064519043221724
+paper,overlap_vs_coverage,IPPO + flip,4,0.53,0.15931219509557676,0.14190162679354867,0.17672276339760484
+paper,overlap_vs_coverage,IPPO + flip,4,0.55,0.16439385156621011,0.14653266076331886,0.18225504236910137
+paper,overlap_vs_coverage,IPPO + flip,4,0.57,0.16933234663386093,0.15096912772007193,0.18769556554764993
+paper,overlap_vs_coverage,IPPO + flip,4,0.59,0.17429527195922115,0.15573368657205852,0.19285685734638378
+paper,overlap_vs_coverage,IPPO + flip,4,0.61,0.17785789588825746,0.1587629862174697,0.1969528055590452
+paper,overlap_vs_coverage,IPPO + flip,4,0.63,0.18132600175184113,0.1620551827580516,0.20059682074563065
+paper,overlap_vs_coverage,IPPO + flip,4,0.65,0.18646358411040223,0.1675206275409551,0.20540654067984937
+paper,overlap_vs_coverage,IPPO + flip,4,0.67,0.1910636353780303,0.17193536447586394,0.21019190628019668
+paper,overlap_vs_coverage,IPPO + flip,4,0.69,0.19704587796801018,0.17704570534468858,0.21704605059133178
+paper,overlap_vs_coverage,IPPO + flip,4,0.71,0.20255773324976883,0.18130155776907905,0.22381390873045862
+paper,overlap_vs_coverage,IPPO + flip,4,0.73,0.20977768151645076,0.18679245990506715,0.23276290312783438
+paper,overlap_vs_coverage,IPPO + flip,4,0.75,0.21498304069565055,0.19104904394289135,0.23891703744840975
+paper,overlap_vs_coverage,IPPO + flip,4,0.77,0.222278796593871,0.19756882664375694,0.24698876654398508
+paper,overlap_vs_coverage,IPPO + flip,4,0.79,0.22736262961437828,0.20250996792372492,0.2522152913050316
+paper,overlap_vs_coverage,IPPO + flip,4,0.81,0.23303349472974477,0.20748356781827884,0.25858342164121073
+paper,overlap_vs_coverage,IPPO + flip,4,0.83,0.24045250061572643,0.21352303207200798,0.2673819691594449
+paper,overlap_vs_coverage,IPPO + flip,4,0.85,0.2487013538678487,0.21993907570405297,0.2774636320316444
+paper,overlap_vs_coverage,IPPO + flip,4,0.87,0.2592605911195278,0.22969829329493244,0.2888228889441232
+paper,overlap_vs_coverage,IPPO + flip,4,0.89,0.27149176525703644,0.240869971107491,0.3021135594065819
+paper,overlap_vs_coverage,IPPO + flip,4,0.91,0.28547819860671697,0.2530957064864139,0.31786069072702006
+paper,overlap_vs_coverage,IPPO + flip,4,0.93,0.3068182975576635,0.2706618575343284,0.34297473758099856
+paper,overlap_vs_coverage,IPPO + flip,4,0.95,0.3299280156691869,0.2884619342481971,0.3713940970901767
+paper,overlap_vs_coverage,IPPO (last),4,0.05,0.0474924757084074,0.039018115077317055,0.05596683633949775
+paper,overlap_vs_coverage,IPPO (last),4,0.07,0.05548099224177892,0.04632668033919544,0.06463530414436242
+paper,overlap_vs_coverage,IPPO (last),4,0.09,0.0627026942031654,0.05353942497636142,0.0718659634299694
+paper,overlap_vs_coverage,IPPO (last),4,0.11,0.068972876511939,0.05996014410933542,0.07798560891454256
+paper,overlap_vs_coverage,IPPO (last),4,0.13,0.07358692981008637,0.0645595233971018,0.08261433622307093
+paper,overlap_vs_coverage,IPPO (last),4,0.15,0.07817977506732732,0.0692069083234422,0.08715264181121243
+paper,overlap_vs_coverage,IPPO (last),4,0.17,0.0827385690553408,0.0737672200181138,0.0917099180925678
+paper,overlap_vs_coverage,IPPO (last),4,0.19,0.08648150861916834,0.07750430161454608,0.0954587156237906
+paper,overlap_vs_coverage,IPPO (last),4,0.21,0.09173163662158083,0.08269256167846209,0.10077071156469958
+paper,overlap_vs_coverage,IPPO (last),4,0.23,0.09776814569506728,0.0891191651715212,0.10641712621861336
+paper,overlap_vs_coverage,IPPO (last),4,0.25,0.10243155991887314,0.09428131604432217,0.1105818037934241
+paper,overlap_vs_coverage,IPPO (last),4,0.27,0.10507779344589564,0.09697796942730687,0.11317761746448442
+paper,overlap_vs_coverage,IPPO (last),4,0.29,0.10750503228617866,0.09975803672095551,0.11525202785140182
+paper,overlap_vs_coverage,IPPO (last),4,0.31,0.11109029406910402,0.10314781147724647,0.11903277666096157
+paper,overlap_vs_coverage,IPPO (last),4,0.33,0.11458674102629486,0.10706955575892507,0.12210392629366465
+paper,overlap_vs_coverage,IPPO (last),4,0.35,0.1184307961283546,0.11089424934840794,0.12596734290830125
+paper,overlap_vs_coverage,IPPO (last),4,0.37,0.12336612777098228,0.115018924694599,0.13171333084736556
+paper,overlap_vs_coverage,IPPO (last),4,0.39,0.125891823092835,0.11712420289021527,0.13465944329545473
+paper,overlap_vs_coverage,IPPO (last),4,0.41,0.1290836033917833,0.11944116080658651,0.13872604597698007
+paper,overlap_vs_coverage,IPPO (last),4,0.43,0.13394738047530777,0.12255516747514084,0.1453395934754747
+paper,overlap_vs_coverage,IPPO (last),4,0.45,0.13857006278346504,0.1254992563869949,0.15164086917993516
+paper,overlap_vs_coverage,IPPO (last),4,0.47,0.14429791902371666,0.12887365533454753,0.1597221827128858
+paper,overlap_vs_coverage,IPPO (last),4,0.49,0.14901747861713693,0.13285766116453168,0.16517729606974219
+paper,overlap_vs_coverage,IPPO (last),4,0.51,0.15386456411266536,0.13712651892510616,0.17060260930022456
+paper,overlap_vs_coverage,IPPO (last),4,0.53,0.15925305918381927,0.14183683324567892,0.17666928512195962
+paper,overlap_vs_coverage,IPPO (last),4,0.55,0.16419997242720505,0.14634380501844102,0.18205613983596908
+paper,overlap_vs_coverage,IPPO (last),4,0.57,0.16895900026225205,0.1506716096637248,0.1872463908607793
+paper,overlap_vs_coverage,IPPO (last),4,0.59,0.17397730745244444,0.15552289263967384,0.19243172226521504
+paper,overlap_vs_coverage,IPPO (last),4,0.61,0.17757864316043098,0.15859902485485747,0.1965582614660045
+paper,overlap_vs_coverage,IPPO (last),4,0.63,0.18101020405689877,0.1618797494103897,0.20014065870340783
+paper,overlap_vs_coverage,IPPO (last),4,0.65,0.1861379607989077,0.16734172078122772,0.2049342008165877
+paper,overlap_vs_coverage,IPPO (last),4,0.67,0.19073092996289856,0.1717568101682717,0.2097050497575254
+paper,overlap_vs_coverage,IPPO (last),4,0.69,0.19658173895195913,0.17678386544962416,0.2163796124542941
+paper,overlap_vs_coverage,IPPO (last),4,0.71,0.20213185348793075,0.1810448165285781,0.2232188904472834
+paper,overlap_vs_coverage,IPPO (last),4,0.73,0.2093610710611469,0.18651454444057958,0.23220759768171423
+paper,overlap_vs_coverage,IPPO (last),4,0.75,0.2145465822857723,0.19076841413494602,0.2383247504365986
+paper,overlap_vs_coverage,IPPO (last),4,0.77,0.22176537669280116,0.19722071488319928,0.24631003850240304
+paper,overlap_vs_coverage,IPPO (last),4,0.79,0.22698601400643068,0.2022526833734967,0.2517193446393647
+paper,overlap_vs_coverage,IPPO (last),4,0.81,0.2326813221239207,0.2072781961627441,0.25808444808509734
+paper,overlap_vs_coverage,IPPO (last),4,0.83,0.24016602801387768,0.213379933131616,0.2669521228961394
+paper,overlap_vs_coverage,IPPO (last),4,0.85,0.24863430230241068,0.21992176381075515,0.2773468407940662
+paper,overlap_vs_coverage,IPPO (last),4,0.87,0.2589900262915252,0.22964344037335377,0.2883366122096966
+paper,overlap_vs_coverage,IPPO (last),4,0.89,0.27083635676586837,0.24072999863823547,0.3009427148935013
+paper,overlap_vs_coverage,IPPO (last),4,0.91,0.284696520289831,0.25285050746769305,0.31654253311196895
+paper,overlap_vs_coverage,IPPO (last),4,0.93,0.3055434561612313,0.2698705938869188,0.3412163184355438
+paper,overlap_vs_coverage,IPPO (last),4,0.95,0.3288729271867819,0.2881200765763685,0.3696257777971953
 paper,median_time_to_coverage_min,Single-agent xN,4,0.01,0.23194444444444445,,
 paper,median_time_to_coverage_min,Single-agent xN,4,0.02,0.49444444444444446,,
 paper,median_time_to_coverage_min,Single-agent xN,4,0.03,0.7555555555555554,,
@@ -814,6 +952,291 @@ paper,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.92,24.52
 paper,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.93,25.11388888888889,,
 paper,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.94,25.668055555555558,,
 paper,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.95,26.33611111111111,,
+paper,median_time_to_coverage_min,IPPO,4,0.01,0.21805555555555553,,
+paper,median_time_to_coverage_min,IPPO,4,0.02,0.42361111111111105,,
+paper,median_time_to_coverage_min,IPPO,4,0.03,0.6263888888888888,,
+paper,median_time_to_coverage_min,IPPO,4,0.04,0.8236111111111112,,
+paper,median_time_to_coverage_min,IPPO,4,0.05,1.0208333333333333,,
+paper,median_time_to_coverage_min,IPPO,4,0.06,1.213888888888889,,
+paper,median_time_to_coverage_min,IPPO,4,0.07,1.4069444444444443,,
+paper,median_time_to_coverage_min,IPPO,4,0.08,1.6,,
+paper,median_time_to_coverage_min,IPPO,4,0.09,1.7972222222222223,,
+paper,median_time_to_coverage_min,IPPO,4,0.1,1.984722222222222,,
+paper,median_time_to_coverage_min,IPPO,4,0.11,2.183333333333333,,
+paper,median_time_to_coverage_min,IPPO,4,0.12,2.3666666666666667,,
+paper,median_time_to_coverage_min,IPPO,4,0.13,2.559722222222222,,
+paper,median_time_to_coverage_min,IPPO,4,0.14,2.754166666666667,,
+paper,median_time_to_coverage_min,IPPO,4,0.15,2.940277777777778,,
+paper,median_time_to_coverage_min,IPPO,4,0.16,3.127777777777778,,
+paper,median_time_to_coverage_min,IPPO,4,0.17,3.3222222222222224,,
+paper,median_time_to_coverage_min,IPPO,4,0.18,3.5208333333333335,,
+paper,median_time_to_coverage_min,IPPO,4,0.19,3.7027777777777775,,
+paper,median_time_to_coverage_min,IPPO,4,0.2,3.8972222222222217,,
+paper,median_time_to_coverage_min,IPPO,4,0.21,4.094444444444445,,
+paper,median_time_to_coverage_min,IPPO,4,0.22,4.277777777777778,,
+paper,median_time_to_coverage_min,IPPO,4,0.23,4.477777777777777,,
+paper,median_time_to_coverage_min,IPPO,4,0.24,4.684722222222223,,
+paper,median_time_to_coverage_min,IPPO,4,0.25,4.877777777777777,,
+paper,median_time_to_coverage_min,IPPO,4,0.26,5.079166666666667,,
+paper,median_time_to_coverage_min,IPPO,4,0.27,5.290277777777777,,
+paper,median_time_to_coverage_min,IPPO,4,0.28,5.493055555555555,,
+paper,median_time_to_coverage_min,IPPO,4,0.29,5.726388888888889,,
+paper,median_time_to_coverage_min,IPPO,4,0.3,5.933333333333334,,
+paper,median_time_to_coverage_min,IPPO,4,0.31,6.13611111111111,,
+paper,median_time_to_coverage_min,IPPO,4,0.32,6.361111111111112,,
+paper,median_time_to_coverage_min,IPPO,4,0.33,6.579166666666667,,
+paper,median_time_to_coverage_min,IPPO,4,0.34,6.8,,
+paper,median_time_to_coverage_min,IPPO,4,0.35,7.02361111111111,,
+paper,median_time_to_coverage_min,IPPO,4,0.36,7.256944444444445,,
+paper,median_time_to_coverage_min,IPPO,4,0.37,7.470833333333333,,
+paper,median_time_to_coverage_min,IPPO,4,0.38,7.677777777777777,,
+paper,median_time_to_coverage_min,IPPO,4,0.39,7.919444444444443,,
+paper,median_time_to_coverage_min,IPPO,4,0.4,8.141666666666667,,
+paper,median_time_to_coverage_min,IPPO,4,0.41,8.395833333333334,,
+paper,median_time_to_coverage_min,IPPO,4,0.42,8.60277777777778,,
+paper,median_time_to_coverage_min,IPPO,4,0.43,8.805555555555554,,
+paper,median_time_to_coverage_min,IPPO,4,0.44,9.05,,
+paper,median_time_to_coverage_min,IPPO,4,0.45,9.286111111111113,,
+paper,median_time_to_coverage_min,IPPO,4,0.46,9.525,,
+paper,median_time_to_coverage_min,IPPO,4,0.47,9.751388888888888,,
+paper,median_time_to_coverage_min,IPPO,4,0.48,9.970833333333333,,
+paper,median_time_to_coverage_min,IPPO,4,0.49,10.183333333333334,,
+paper,median_time_to_coverage_min,IPPO,4,0.5,10.416666666666666,,
+paper,median_time_to_coverage_min,IPPO,4,0.51,10.618055555555555,,
+paper,median_time_to_coverage_min,IPPO,4,0.52,10.848611111111113,,
+paper,median_time_to_coverage_min,IPPO,4,0.53,11.069444444444446,,
+paper,median_time_to_coverage_min,IPPO,4,0.54,11.305555555555554,,
+paper,median_time_to_coverage_min,IPPO,4,0.55,11.531944444444445,,
+paper,median_time_to_coverage_min,IPPO,4,0.56,11.770833333333334,,
+paper,median_time_to_coverage_min,IPPO,4,0.57,12.023611111111112,,
+paper,median_time_to_coverage_min,IPPO,4,0.58,12.243055555555554,,
+paper,median_time_to_coverage_min,IPPO,4,0.59,12.484722222222222,,
+paper,median_time_to_coverage_min,IPPO,4,0.6,12.704166666666667,,
+paper,median_time_to_coverage_min,IPPO,4,0.61,12.929166666666667,,
+paper,median_time_to_coverage_min,IPPO,4,0.62,13.151388888888887,,
+paper,median_time_to_coverage_min,IPPO,4,0.63,13.384722222222221,,
+paper,median_time_to_coverage_min,IPPO,4,0.64,13.627777777777776,,
+paper,median_time_to_coverage_min,IPPO,4,0.65,13.873611111111112,,
+paper,median_time_to_coverage_min,IPPO,4,0.66,14.130555555555555,,
+paper,median_time_to_coverage_min,IPPO,4,0.67,14.355555555555554,,
+paper,median_time_to_coverage_min,IPPO,4,0.68,14.569444444444446,,
+paper,median_time_to_coverage_min,IPPO,4,0.69,14.808333333333334,,
+paper,median_time_to_coverage_min,IPPO,4,0.7,15.018055555555556,,
+paper,median_time_to_coverage_min,IPPO,4,0.71,15.258333333333333,,
+paper,median_time_to_coverage_min,IPPO,4,0.72,15.55,,
+paper,median_time_to_coverage_min,IPPO,4,0.73,15.829166666666667,,
+paper,median_time_to_coverage_min,IPPO,4,0.74,16.09722222222222,,
+paper,median_time_to_coverage_min,IPPO,4,0.75,16.3125,,
+paper,median_time_to_coverage_min,IPPO,4,0.76,16.558333333333334,,
+paper,median_time_to_coverage_min,IPPO,4,0.77,16.788888888888888,,
+paper,median_time_to_coverage_min,IPPO,4,0.78,17.030555555555555,,
+paper,median_time_to_coverage_min,IPPO,4,0.79,17.25138888888889,,
+paper,median_time_to_coverage_min,IPPO,4,0.8,17.490277777777774,,
+paper,median_time_to_coverage_min,IPPO,4,0.81,17.73472222222222,,
+paper,median_time_to_coverage_min,IPPO,4,0.82,17.980555555555558,,
+paper,median_time_to_coverage_min,IPPO,4,0.83,18.233333333333334,,
+paper,median_time_to_coverage_min,IPPO,4,0.84,18.504166666666666,,
+paper,median_time_to_coverage_min,IPPO,4,0.85,18.831944444444442,,
+paper,median_time_to_coverage_min,IPPO,4,0.86,19.173611111111107,,
+paper,median_time_to_coverage_min,IPPO,4,0.87,19.465277777777775,,
+paper,median_time_to_coverage_min,IPPO,4,0.88,19.769444444444442,,
+paper,median_time_to_coverage_min,IPPO,4,0.89,20.02361111111111,,
+paper,median_time_to_coverage_min,IPPO,4,0.9,20.301388888888887,,
+paper,median_time_to_coverage_min,IPPO,4,0.91,20.61388888888889,,
+paper,median_time_to_coverage_min,IPPO,4,0.92,20.933333333333334,,
+paper,median_time_to_coverage_min,IPPO,4,0.93,21.240277777777774,,
+paper,median_time_to_coverage_min,IPPO,4,0.94,21.558333333333334,,
+paper,median_time_to_coverage_min,IPPO,4,0.95,21.890277777777776,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.01,0.21805555555555553,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.02,0.42361111111111105,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.03,0.6263888888888888,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.04,0.8236111111111112,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.05,1.0208333333333333,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.06,1.213888888888889,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.07,1.4069444444444443,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.08,1.6,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.09,1.7972222222222223,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.1,1.984722222222222,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.11,2.183333333333333,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.12,2.3666666666666667,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.13,2.559722222222222,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.14,2.754166666666667,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.15,2.940277777777778,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.16,3.127777777777778,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.17,3.3222222222222224,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.18,3.5208333333333335,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.19,3.7027777777777775,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.2,3.8972222222222217,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.21,4.094444444444445,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.22,4.277777777777778,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.23,4.477777777777777,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.24,4.684722222222223,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.25,4.877777777777777,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.26,5.079166666666667,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.27,5.290277777777777,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.28,5.493055555555555,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.29,5.726388888888889,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.3,5.933333333333334,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.31,6.13611111111111,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.32,6.361111111111112,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.33,6.579166666666667,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.34,6.8,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.35,7.02361111111111,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.36,7.256944444444445,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.37,7.470833333333333,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.38,7.677777777777777,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.39,7.919444444444443,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.4,8.141666666666667,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.41,8.395833333333334,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.42,8.60277777777778,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.43,8.805555555555554,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.44,9.05,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.45,9.286111111111113,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.46,9.525,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.47,9.751388888888888,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.48,9.970833333333333,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.49,10.183333333333334,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.5,10.416666666666666,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.51,10.618055555555555,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.52,10.848611111111113,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.53,11.069444444444446,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.54,11.305555555555554,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.55,11.531944444444445,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.56,11.770833333333334,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.57,12.023611111111112,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.58,12.243055555555554,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.59,12.484722222222222,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.6,12.704166666666667,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.61,12.929166666666667,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.62,13.151388888888887,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.63,13.384722222222221,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.64,13.627777777777776,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.65,13.873611111111112,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.66,14.130555555555555,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.67,14.355555555555554,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.68,14.569444444444446,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.69,14.808333333333334,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.7,15.018055555555556,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.71,15.258333333333333,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.72,15.55,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.73,15.829166666666667,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.74,16.09722222222222,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.75,16.3125,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.76,16.558333333333334,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.77,16.788888888888888,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.78,17.030555555555555,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.79,17.25138888888889,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.8,17.490277777777774,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.81,17.73472222222222,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.82,17.980555555555558,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.83,18.233333333333334,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.84,18.504166666666666,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.85,18.831944444444442,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.86,19.173611111111107,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.87,19.465277777777775,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.88,19.769444444444442,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.89,20.02361111111111,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.9,20.301388888888887,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.91,20.61388888888889,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.92,20.933333333333334,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.93,21.240277777777774,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.94,21.558333333333334,,
+paper,median_time_to_coverage_min,IPPO + flip,4,0.95,21.890277777777776,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.01,0.21805555555555553,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.02,0.42361111111111105,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.03,0.6263888888888888,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.04,0.8236111111111112,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.05,1.0208333333333333,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.06,1.213888888888889,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.07,1.4069444444444443,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.08,1.6,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.09,1.7972222222222223,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.1,1.984722222222222,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.11,2.183333333333333,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.12,2.3666666666666667,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.13,2.559722222222222,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.14,2.754166666666667,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.15,2.940277777777778,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.16,3.127777777777778,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.17,3.3222222222222224,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.18,3.5208333333333335,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.19,3.7027777777777775,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.2,3.8972222222222217,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.21,4.094444444444445,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.22,4.277777777777778,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.23,4.477777777777777,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.24,4.684722222222223,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.25,4.877777777777777,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.26,5.079166666666667,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.27,5.290277777777777,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.28,5.493055555555555,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.29,5.726388888888889,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.3,5.933333333333334,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.31,6.13611111111111,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.32,6.361111111111112,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.33,6.579166666666667,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.34,6.8,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.35,7.02361111111111,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.36,7.256944444444445,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.37,7.470833333333333,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.38,7.677777777777777,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.39,7.919444444444443,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.4,8.141666666666667,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.41,8.395833333333334,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.42,8.60277777777778,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.43,8.805555555555554,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.44,9.05,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.45,9.286111111111113,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.46,9.525,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.47,9.751388888888888,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.48,9.970833333333333,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.49,10.183333333333334,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.5,10.416666666666666,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.51,10.618055555555555,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.52,10.848611111111113,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.53,11.069444444444446,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.54,11.305555555555554,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.55,11.531944444444445,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.56,11.770833333333334,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.57,12.023611111111112,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.58,12.243055555555554,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.59,12.484722222222222,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.6,12.704166666666667,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.61,12.929166666666667,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.62,13.151388888888887,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.63,13.384722222222221,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.64,13.627777777777776,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.65,13.873611111111112,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.66,14.130555555555555,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.67,14.355555555555554,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.68,14.569444444444446,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.69,14.808333333333334,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.7,15.018055555555556,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.71,15.258333333333333,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.72,15.55,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.73,15.829166666666667,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.74,16.09722222222222,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.75,16.3125,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.76,16.558333333333334,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.77,16.788888888888888,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.78,17.030555555555555,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.79,17.25138888888889,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.8,17.490277777777774,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.81,17.73472222222222,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.82,17.980555555555558,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.83,18.233333333333334,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.84,18.504166666666666,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.85,18.831944444444442,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.86,19.173611111111107,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.87,19.465277777777775,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.88,19.769444444444442,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.89,20.02361111111111,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.9,20.301388888888887,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.91,20.61388888888889,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.92,20.933333333333334,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.93,21.240277777777774,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.94,21.558333333333334,,
+paper,median_time_to_coverage_min,IPPO (last),4,0.95,21.890277777777776,,
 test_large,overlap_vs_coverage,Single-agent xN,4,0.05,0.22251871990660826,0.21123347537068754,0.233803964442529
 test_large,overlap_vs_coverage,Single-agent xN,4,0.07,0.24360792579750215,0.2315881510234506,0.2556277005715537
 test_large,overlap_vs_coverage,Single-agent xN,4,0.09,0.25918904202679793,0.24663604033601053,0.27174204371758537
@@ -1083,6 +1506,144 @@ test_large,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.89,0.228294
 test_large,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.91,0.2389683592071136,0.22342888195938163,0.25450783645484554
 test_large,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.93,0.2523603598276774,0.2360882380663178,0.268632481589037
 test_large,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.95,0.2693208151807388,0.25213251597510933,0.2865091143863683
+test_large,overlap_vs_coverage,IPPO,4,0.05,0.08185679577291013,0.07649451154131921,0.08721908000450106
+test_large,overlap_vs_coverage,IPPO,4,0.07,0.09206627855698267,0.08646423752555467,0.09766831958841067
+test_large,overlap_vs_coverage,IPPO,4,0.09,0.09952151672293741,0.09388359911362645,0.10515943433224836
+test_large,overlap_vs_coverage,IPPO,4,0.11,0.10695466898381709,0.1009568292608702,0.11295250870676397
+test_large,overlap_vs_coverage,IPPO,4,0.13,0.11316060782720644,0.10697887267623996,0.11934234297817292
+test_large,overlap_vs_coverage,IPPO,4,0.15,0.11867789157976708,0.11224655455468209,0.12510922860485205
+test_large,overlap_vs_coverage,IPPO,4,0.17,0.12340796985973913,0.11660330260408713,0.13021263711539113
+test_large,overlap_vs_coverage,IPPO,4,0.19,0.12638220923642315,0.11968526390966948,0.13307915456317682
+test_large,overlap_vs_coverage,IPPO,4,0.21,0.13039128422737123,0.12345581561316016,0.1373267528415823
+test_large,overlap_vs_coverage,IPPO,4,0.23,0.13344932444393634,0.12636558539554252,0.14053306349233016
+test_large,overlap_vs_coverage,IPPO,4,0.25,0.13617454357445238,0.1291364892703769,0.14321259787852786
+test_large,overlap_vs_coverage,IPPO,4,0.27,0.13887248456478118,0.131848902655666,0.14589606647389636
+test_large,overlap_vs_coverage,IPPO,4,0.29,0.14192983366549017,0.1345117798028673,0.14934788752811304
+test_large,overlap_vs_coverage,IPPO,4,0.31,0.14458786020676295,0.13707165029120025,0.15210407012232566
+test_large,overlap_vs_coverage,IPPO,4,0.33,0.14758410416543483,0.13983333084960706,0.1553348774812626
+test_large,overlap_vs_coverage,IPPO,4,0.35,0.1502817945679029,0.14236398126628996,0.1581996078695158
+test_large,overlap_vs_coverage,IPPO,4,0.37,0.15310607388615607,0.14502666138273032,0.16118548638958183
+test_large,overlap_vs_coverage,IPPO,4,0.39,0.1558344376832247,0.14769592118912192,0.16397295417732746
+test_large,overlap_vs_coverage,IPPO,4,0.41,0.15861423549552758,0.15052896509191585,0.16669950589913932
+test_large,overlap_vs_coverage,IPPO,4,0.43,0.16190984060366947,0.1535929665532974,0.17022671465404154
+test_large,overlap_vs_coverage,IPPO,4,0.45,0.16540150259931874,0.1567862675824741,0.17401673761616337
+test_large,overlap_vs_coverage,IPPO,4,0.47,0.16766981060306235,0.15900272325855386,0.17633689794757085
+test_large,overlap_vs_coverage,IPPO,4,0.49,0.16966897865136465,0.16090665038883634,0.17843130691389297
+test_large,overlap_vs_coverage,IPPO,4,0.51,0.17218375511467454,0.16346235136386122,0.18090515886548786
+test_large,overlap_vs_coverage,IPPO,4,0.53,0.1751985865831375,0.1663570151187822,0.1840401580474928
+test_large,overlap_vs_coverage,IPPO,4,0.55,0.177159884100159,0.16834365338464122,0.1859761148156768
+test_large,overlap_vs_coverage,IPPO,4,0.57,0.17951123759150506,0.1706941705539087,0.1883283046291014
+test_large,overlap_vs_coverage,IPPO,4,0.59,0.1823114277670781,0.17334083796821076,0.19128201756594543
+test_large,overlap_vs_coverage,IPPO,4,0.61,0.18521911131838958,0.17623954151692528,0.1941986811198539
+test_large,overlap_vs_coverage,IPPO,4,0.63,0.18805164150893688,0.17876902193100744,0.19733426108686633
+test_large,overlap_vs_coverage,IPPO,4,0.65,0.19160996491710347,0.18194984882209075,0.2012700810121162
+test_large,overlap_vs_coverage,IPPO,4,0.67,0.19537536198894184,0.18538224626241595,0.20536847771546773
+test_large,overlap_vs_coverage,IPPO,4,0.69,0.19942844962080314,0.18909635759184604,0.20976054164976024
+test_large,overlap_vs_coverage,IPPO,4,0.71,0.20364878190060456,0.1929253845794417,0.21437217922176743
+test_large,overlap_vs_coverage,IPPO,4,0.73,0.2076007050524155,0.1963306989107466,0.21887071119408444
+test_large,overlap_vs_coverage,IPPO,4,0.75,0.21178789258003236,0.20013500294749023,0.2234407822125745
+test_large,overlap_vs_coverage,IPPO,4,0.77,0.21722240117688973,0.20516282113303616,0.2292819812207433
+test_large,overlap_vs_coverage,IPPO,4,0.79,0.2234269184122483,0.2109571052134495,0.2358967316110471
+test_large,overlap_vs_coverage,IPPO,4,0.81,0.22978876849015553,0.21698361125726676,0.2425939257230443
+test_large,overlap_vs_coverage,IPPO,4,0.83,0.236080987577637,0.2229863574792659,0.24917561767600813
+test_large,overlap_vs_coverage,IPPO,4,0.85,0.24164567018548644,0.22834129120578459,0.2549500491651883
+test_large,overlap_vs_coverage,IPPO,4,0.87,0.2484938106437524,0.2349267909292957,0.2620608303582091
+test_large,overlap_vs_coverage,IPPO,4,0.89,0.2585640871773163,0.2442428695726887,0.27288530478194395
+test_large,overlap_vs_coverage,IPPO,4,0.91,0.2702190521607796,0.25542042535530846,0.2850176789662508
+test_large,overlap_vs_coverage,IPPO,4,0.93,0.28644423435131705,0.27035626323644196,0.30253220546619214
+test_large,overlap_vs_coverage,IPPO,4,0.95,0.3033339447776477,0.2862912533307558,0.3203766362245396
+test_large,overlap_vs_coverage,IPPO + flip,4,0.05,0.08185679577291013,0.07649451154131921,0.08721908000450106
+test_large,overlap_vs_coverage,IPPO + flip,4,0.07,0.09206627855698267,0.08646423752555467,0.09766831958841067
+test_large,overlap_vs_coverage,IPPO + flip,4,0.09,0.09952151672293741,0.09388359911362645,0.10515943433224836
+test_large,overlap_vs_coverage,IPPO + flip,4,0.11,0.10695466898381709,0.1009568292608702,0.11295250870676397
+test_large,overlap_vs_coverage,IPPO + flip,4,0.13,0.11316060782720644,0.10697887267623996,0.11934234297817292
+test_large,overlap_vs_coverage,IPPO + flip,4,0.15,0.11867789157976708,0.11224655455468209,0.12510922860485205
+test_large,overlap_vs_coverage,IPPO + flip,4,0.17,0.12340796985973913,0.11660330260408713,0.13021263711539113
+test_large,overlap_vs_coverage,IPPO + flip,4,0.19,0.12638220923642315,0.11968526390966948,0.13307915456317682
+test_large,overlap_vs_coverage,IPPO + flip,4,0.21,0.13039128422737123,0.12345581561316016,0.1373267528415823
+test_large,overlap_vs_coverage,IPPO + flip,4,0.23,0.13344932444393634,0.12636558539554252,0.14053306349233016
+test_large,overlap_vs_coverage,IPPO + flip,4,0.25,0.13617454357445238,0.1291364892703769,0.14321259787852786
+test_large,overlap_vs_coverage,IPPO + flip,4,0.27,0.13887248456478118,0.131848902655666,0.14589606647389636
+test_large,overlap_vs_coverage,IPPO + flip,4,0.29,0.14192983366549017,0.1345117798028673,0.14934788752811304
+test_large,overlap_vs_coverage,IPPO + flip,4,0.31,0.14458786020676295,0.13707165029120025,0.15210407012232566
+test_large,overlap_vs_coverage,IPPO + flip,4,0.33,0.14758410416543483,0.13983333084960706,0.1553348774812626
+test_large,overlap_vs_coverage,IPPO + flip,4,0.35,0.1502817945679029,0.14236398126628996,0.1581996078695158
+test_large,overlap_vs_coverage,IPPO + flip,4,0.37,0.15310607388615607,0.14502666138273032,0.16118548638958183
+test_large,overlap_vs_coverage,IPPO + flip,4,0.39,0.1558344376832247,0.14769592118912192,0.16397295417732746
+test_large,overlap_vs_coverage,IPPO + flip,4,0.41,0.15861423549552758,0.15052896509191585,0.16669950589913932
+test_large,overlap_vs_coverage,IPPO + flip,4,0.43,0.16190984060366947,0.1535929665532974,0.17022671465404154
+test_large,overlap_vs_coverage,IPPO + flip,4,0.45,0.16540150259931874,0.1567862675824741,0.17401673761616337
+test_large,overlap_vs_coverage,IPPO + flip,4,0.47,0.16766981060306235,0.15900272325855386,0.17633689794757085
+test_large,overlap_vs_coverage,IPPO + flip,4,0.49,0.16966897865136465,0.16090665038883634,0.17843130691389297
+test_large,overlap_vs_coverage,IPPO + flip,4,0.51,0.17218375511467454,0.16346235136386122,0.18090515886548786
+test_large,overlap_vs_coverage,IPPO + flip,4,0.53,0.1751985865831375,0.1663570151187822,0.1840401580474928
+test_large,overlap_vs_coverage,IPPO + flip,4,0.55,0.177159884100159,0.16834365338464122,0.1859761148156768
+test_large,overlap_vs_coverage,IPPO + flip,4,0.57,0.17951123759150506,0.1706941705539087,0.1883283046291014
+test_large,overlap_vs_coverage,IPPO + flip,4,0.59,0.1823114277670781,0.17334083796821076,0.19128201756594543
+test_large,overlap_vs_coverage,IPPO + flip,4,0.61,0.18521911131838958,0.17623954151692528,0.1941986811198539
+test_large,overlap_vs_coverage,IPPO + flip,4,0.63,0.18805164150893688,0.17876902193100744,0.19733426108686633
+test_large,overlap_vs_coverage,IPPO + flip,4,0.65,0.19160996491710347,0.18194984882209075,0.2012700810121162
+test_large,overlap_vs_coverage,IPPO + flip,4,0.67,0.19537536198894184,0.18538224626241595,0.20536847771546773
+test_large,overlap_vs_coverage,IPPO + flip,4,0.69,0.19942844962080314,0.18909635759184604,0.20976054164976024
+test_large,overlap_vs_coverage,IPPO + flip,4,0.71,0.20364878190060456,0.1929253845794417,0.21437217922176743
+test_large,overlap_vs_coverage,IPPO + flip,4,0.73,0.2076007050524155,0.1963306989107466,0.21887071119408444
+test_large,overlap_vs_coverage,IPPO + flip,4,0.75,0.21178789258003236,0.20013500294749023,0.2234407822125745
+test_large,overlap_vs_coverage,IPPO + flip,4,0.77,0.21722240117688973,0.20516282113303616,0.2292819812207433
+test_large,overlap_vs_coverage,IPPO + flip,4,0.79,0.2234269184122483,0.2109571052134495,0.2358967316110471
+test_large,overlap_vs_coverage,IPPO + flip,4,0.81,0.22978855634729067,0.21698335424939746,0.24259375844518388
+test_large,overlap_vs_coverage,IPPO + flip,4,0.83,0.23607412320872145,0.2229779471185381,0.2491702992989048
+test_large,overlap_vs_coverage,IPPO + flip,4,0.85,0.24165895546476043,0.22835679389587657,0.25496111703364427
+test_large,overlap_vs_coverage,IPPO + flip,4,0.87,0.24850438718994458,0.2349406195278978,0.26206815485199136
+test_large,overlap_vs_coverage,IPPO + flip,4,0.89,0.25857539849976696,0.2442591672969399,0.27289162970259406
+test_large,overlap_vs_coverage,IPPO + flip,4,0.91,0.2702295327434937,0.255434288452637,0.2850247770343504
+test_large,overlap_vs_coverage,IPPO + flip,4,0.93,0.28640039697289466,0.2703170542843075,0.3024837396614818
+test_large,overlap_vs_coverage,IPPO + flip,4,0.95,0.3033135169744492,0.2862795524902246,0.3203474814586738
+test_large,overlap_vs_coverage,IPPO (last),4,0.05,0.08185679577291013,0.07649451154131921,0.08721908000450106
+test_large,overlap_vs_coverage,IPPO (last),4,0.07,0.09206627855698267,0.08646423752555467,0.09766831958841067
+test_large,overlap_vs_coverage,IPPO (last),4,0.09,0.09952151672293741,0.09388359911362645,0.10515943433224836
+test_large,overlap_vs_coverage,IPPO (last),4,0.11,0.10695466898381709,0.1009568292608702,0.11295250870676397
+test_large,overlap_vs_coverage,IPPO (last),4,0.13,0.11316060782720644,0.10697887267623996,0.11934234297817292
+test_large,overlap_vs_coverage,IPPO (last),4,0.15,0.11867789157976708,0.11224655455468209,0.12510922860485205
+test_large,overlap_vs_coverage,IPPO (last),4,0.17,0.12340796985973913,0.11660330260408713,0.13021263711539113
+test_large,overlap_vs_coverage,IPPO (last),4,0.19,0.12638220923642315,0.11968526390966948,0.13307915456317682
+test_large,overlap_vs_coverage,IPPO (last),4,0.21,0.13039128422737123,0.12345581561316016,0.1373267528415823
+test_large,overlap_vs_coverage,IPPO (last),4,0.23,0.13344932444393634,0.12636558539554252,0.14053306349233016
+test_large,overlap_vs_coverage,IPPO (last),4,0.25,0.13617454357445238,0.1291364892703769,0.14321259787852786
+test_large,overlap_vs_coverage,IPPO (last),4,0.27,0.13887248456478118,0.131848902655666,0.14589606647389636
+test_large,overlap_vs_coverage,IPPO (last),4,0.29,0.14192983366549017,0.1345117798028673,0.14934788752811304
+test_large,overlap_vs_coverage,IPPO (last),4,0.31,0.14458786020676295,0.13707165029120025,0.15210407012232566
+test_large,overlap_vs_coverage,IPPO (last),4,0.33,0.14758410416543483,0.13983333084960706,0.1553348774812626
+test_large,overlap_vs_coverage,IPPO (last),4,0.35,0.1502817945679029,0.14236398126628996,0.1581996078695158
+test_large,overlap_vs_coverage,IPPO (last),4,0.37,0.15310607388615607,0.14502666138273032,0.16118548638958183
+test_large,overlap_vs_coverage,IPPO (last),4,0.39,0.1558344376832247,0.14769592118912192,0.16397295417732746
+test_large,overlap_vs_coverage,IPPO (last),4,0.41,0.15861423549552758,0.15052896509191585,0.16669950589913932
+test_large,overlap_vs_coverage,IPPO (last),4,0.43,0.16190984060366947,0.1535929665532974,0.17022671465404154
+test_large,overlap_vs_coverage,IPPO (last),4,0.45,0.16540150259931874,0.1567862675824741,0.17401673761616337
+test_large,overlap_vs_coverage,IPPO (last),4,0.47,0.16766981060306235,0.15900272325855386,0.17633689794757085
+test_large,overlap_vs_coverage,IPPO (last),4,0.49,0.16966897865136465,0.16090665038883634,0.17843130691389297
+test_large,overlap_vs_coverage,IPPO (last),4,0.51,0.17218375511467454,0.16346235136386122,0.18090515886548786
+test_large,overlap_vs_coverage,IPPO (last),4,0.53,0.1751985865831375,0.1663570151187822,0.1840401580474928
+test_large,overlap_vs_coverage,IPPO (last),4,0.55,0.177159884100159,0.16834365338464122,0.1859761148156768
+test_large,overlap_vs_coverage,IPPO (last),4,0.57,0.17951123759150506,0.1706941705539087,0.1883283046291014
+test_large,overlap_vs_coverage,IPPO (last),4,0.59,0.1823114277670781,0.17334083796821076,0.19128201756594543
+test_large,overlap_vs_coverage,IPPO (last),4,0.61,0.18521911131838958,0.17623954151692528,0.1941986811198539
+test_large,overlap_vs_coverage,IPPO (last),4,0.63,0.18805164150893688,0.17876902193100744,0.19733426108686633
+test_large,overlap_vs_coverage,IPPO (last),4,0.65,0.19160996491710347,0.18194984882209075,0.2012700810121162
+test_large,overlap_vs_coverage,IPPO (last),4,0.67,0.19537536198894184,0.18538224626241595,0.20536847771546773
+test_large,overlap_vs_coverage,IPPO (last),4,0.69,0.19942844962080314,0.18909635759184604,0.20976054164976024
+test_large,overlap_vs_coverage,IPPO (last),4,0.71,0.20364878190060456,0.1929253845794417,0.21437217922176743
+test_large,overlap_vs_coverage,IPPO (last),4,0.73,0.2076007050524155,0.1963306989107466,0.21887071119408444
+test_large,overlap_vs_coverage,IPPO (last),4,0.75,0.21178789258003236,0.20013500294749023,0.2234407822125745
+test_large,overlap_vs_coverage,IPPO (last),4,0.77,0.21722240117688973,0.20516282113303616,0.2292819812207433
+test_large,overlap_vs_coverage,IPPO (last),4,0.79,0.2234269184122483,0.2109571052134495,0.2358967316110471
+test_large,overlap_vs_coverage,IPPO (last),4,0.81,0.22978876849015553,0.21698361125726676,0.2425939257230443
+test_large,overlap_vs_coverage,IPPO (last),4,0.83,0.236080987577637,0.2229863574792659,0.24917561767600813
+test_large,overlap_vs_coverage,IPPO (last),4,0.85,0.24164567018548644,0.22834129120578459,0.2549500491651883
+test_large,overlap_vs_coverage,IPPO (last),4,0.87,0.2484938106437524,0.2349267909292957,0.2620608303582091
+test_large,overlap_vs_coverage,IPPO (last),4,0.89,0.2585640871773163,0.2442428695726887,0.27288530478194395
+test_large,overlap_vs_coverage,IPPO (last),4,0.91,0.2702190521607796,0.25542042535530846,0.2850176789662508
+test_large,overlap_vs_coverage,IPPO (last),4,0.93,0.28644423435131705,0.27035626323644196,0.30253220546619214
+test_large,overlap_vs_coverage,IPPO (last),4,0.95,0.3033339447776477,0.2862912533307558,0.3203766362245396
 test_large,median_time_to_coverage_min,Single-agent xN,4,0.01,0.2472222222222222,,
 test_large,median_time_to_coverage_min,Single-agent xN,4,0.02,0.5569444444444444,,
 test_large,median_time_to_coverage_min,Single-agent xN,4,0.03,0.8951388888888888,,
@@ -1637,6 +2198,291 @@ test_large,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.92,
 test_large,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.93,29.87361111111111,,
 test_large,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.94,30.472222222222225,,
 test_large,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.95,31.208333333333332,,
+test_large,median_time_to_coverage_min,IPPO,4,0.01,0.23055555555555554,,
+test_large,median_time_to_coverage_min,IPPO,4,0.02,0.45972222222222225,,
+test_large,median_time_to_coverage_min,IPPO,4,0.03,0.6902777777777779,,
+test_large,median_time_to_coverage_min,IPPO,4,0.04,0.9111111111111112,,
+test_large,median_time_to_coverage_min,IPPO,4,0.05,1.1333333333333333,,
+test_large,median_time_to_coverage_min,IPPO,4,0.06,1.347222222222222,,
+test_large,median_time_to_coverage_min,IPPO,4,0.07,1.5680555555555555,,
+test_large,median_time_to_coverage_min,IPPO,4,0.08,1.7944444444444443,,
+test_large,median_time_to_coverage_min,IPPO,4,0.09,2.013888888888889,,
+test_large,median_time_to_coverage_min,IPPO,4,0.1,2.236111111111111,,
+test_large,median_time_to_coverage_min,IPPO,4,0.11,2.463888888888889,,
+test_large,median_time_to_coverage_min,IPPO,4,0.12,2.691666666666667,,
+test_large,median_time_to_coverage_min,IPPO,4,0.13,2.9097222222222223,,
+test_large,median_time_to_coverage_min,IPPO,4,0.14,3.1472222222222226,,
+test_large,median_time_to_coverage_min,IPPO,4,0.15,3.3680555555555554,,
+test_large,median_time_to_coverage_min,IPPO,4,0.16,3.5861111111111112,,
+test_large,median_time_to_coverage_min,IPPO,4,0.17,3.8222222222222224,,
+test_large,median_time_to_coverage_min,IPPO,4,0.18,4.048611111111112,,
+test_large,median_time_to_coverage_min,IPPO,4,0.19,4.277777777777777,,
+test_large,median_time_to_coverage_min,IPPO,4,0.2,4.516666666666667,,
+test_large,median_time_to_coverage_min,IPPO,4,0.21,4.747222222222223,,
+test_large,median_time_to_coverage_min,IPPO,4,0.22,4.98888888888889,,
+test_large,median_time_to_coverage_min,IPPO,4,0.23,5.243055555555556,,
+test_large,median_time_to_coverage_min,IPPO,4,0.24,5.459722222222223,,
+test_large,median_time_to_coverage_min,IPPO,4,0.25,5.705555555555557,,
+test_large,median_time_to_coverage_min,IPPO,4,0.26,5.944444444444444,,
+test_large,median_time_to_coverage_min,IPPO,4,0.27,6.19861111111111,,
+test_large,median_time_to_coverage_min,IPPO,4,0.28,6.448611111111111,,
+test_large,median_time_to_coverage_min,IPPO,4,0.29,6.695833333333334,,
+test_large,median_time_to_coverage_min,IPPO,4,0.3,6.9375,,
+test_large,median_time_to_coverage_min,IPPO,4,0.31,7.188888888888889,,
+test_large,median_time_to_coverage_min,IPPO,4,0.32,7.444444444444444,,
+test_large,median_time_to_coverage_min,IPPO,4,0.33,7.718055555555555,,
+test_large,median_time_to_coverage_min,IPPO,4,0.34,7.97638888888889,,
+test_large,median_time_to_coverage_min,IPPO,4,0.35,8.240277777777777,,
+test_large,median_time_to_coverage_min,IPPO,4,0.36,8.4875,,
+test_large,median_time_to_coverage_min,IPPO,4,0.37,8.729166666666666,,
+test_large,median_time_to_coverage_min,IPPO,4,0.38,8.95277777777778,,
+test_large,median_time_to_coverage_min,IPPO,4,0.39,9.183333333333334,,
+test_large,median_time_to_coverage_min,IPPO,4,0.4,9.425,,
+test_large,median_time_to_coverage_min,IPPO,4,0.41,9.676388888888887,,
+test_large,median_time_to_coverage_min,IPPO,4,0.42,9.930555555555555,,
+test_large,median_time_to_coverage_min,IPPO,4,0.43,10.179166666666667,,
+test_large,median_time_to_coverage_min,IPPO,4,0.44,10.436111111111112,,
+test_large,median_time_to_coverage_min,IPPO,4,0.45,10.731944444444444,,
+test_large,median_time_to_coverage_min,IPPO,4,0.46,11.002777777777778,,
+test_large,median_time_to_coverage_min,IPPO,4,0.47,11.254166666666666,,
+test_large,median_time_to_coverage_min,IPPO,4,0.48,11.505555555555555,,
+test_large,median_time_to_coverage_min,IPPO,4,0.49,11.741666666666667,,
+test_large,median_time_to_coverage_min,IPPO,4,0.5,12.013888888888888,,
+test_large,median_time_to_coverage_min,IPPO,4,0.51,12.283333333333333,,
+test_large,median_time_to_coverage_min,IPPO,4,0.52,12.545833333333333,,
+test_large,median_time_to_coverage_min,IPPO,4,0.53,12.798611111111112,,
+test_large,median_time_to_coverage_min,IPPO,4,0.54,13.0375,,
+test_large,median_time_to_coverage_min,IPPO,4,0.55,13.27638888888889,,
+test_large,median_time_to_coverage_min,IPPO,4,0.56,13.541666666666666,,
+test_large,median_time_to_coverage_min,IPPO,4,0.57,13.797222222222222,,
+test_large,median_time_to_coverage_min,IPPO,4,0.58,14.069444444444446,,
+test_large,median_time_to_coverage_min,IPPO,4,0.59,14.31111111111111,,
+test_large,median_time_to_coverage_min,IPPO,4,0.6,14.559722222222222,,
+test_large,median_time_to_coverage_min,IPPO,4,0.61,14.815277777777778,,
+test_large,median_time_to_coverage_min,IPPO,4,0.62,15.063888888888888,,
+test_large,median_time_to_coverage_min,IPPO,4,0.63,15.326388888888888,,
+test_large,median_time_to_coverage_min,IPPO,4,0.64,15.570833333333333,,
+test_large,median_time_to_coverage_min,IPPO,4,0.65,15.8375,,
+test_large,median_time_to_coverage_min,IPPO,4,0.66,16.106944444444444,,
+test_large,median_time_to_coverage_min,IPPO,4,0.67,16.381944444444446,,
+test_large,median_time_to_coverage_min,IPPO,4,0.68,16.663888888888888,,
+test_large,median_time_to_coverage_min,IPPO,4,0.69,16.95,,
+test_large,median_time_to_coverage_min,IPPO,4,0.7,17.233333333333334,,
+test_large,median_time_to_coverage_min,IPPO,4,0.71,17.527777777777775,,
+test_large,median_time_to_coverage_min,IPPO,4,0.72,17.808333333333334,,
+test_large,median_time_to_coverage_min,IPPO,4,0.73,18.056944444444447,,
+test_large,median_time_to_coverage_min,IPPO,4,0.74,18.326388888888893,,
+test_large,median_time_to_coverage_min,IPPO,4,0.75,18.597222222222225,,
+test_large,median_time_to_coverage_min,IPPO,4,0.76,18.8375,,
+test_large,median_time_to_coverage_min,IPPO,4,0.77,19.088888888888892,,
+test_large,median_time_to_coverage_min,IPPO,4,0.78,19.341666666666665,,
+test_large,median_time_to_coverage_min,IPPO,4,0.79,19.62638888888889,,
+test_large,median_time_to_coverage_min,IPPO,4,0.8,19.929166666666667,,
+test_large,median_time_to_coverage_min,IPPO,4,0.81,20.23194444444444,,
+test_large,median_time_to_coverage_min,IPPO,4,0.82,20.53055555555556,,
+test_large,median_time_to_coverage_min,IPPO,4,0.83,20.831944444444442,,
+test_large,median_time_to_coverage_min,IPPO,4,0.84,21.104166666666668,,
+test_large,median_time_to_coverage_min,IPPO,4,0.85,21.381944444444443,,
+test_large,median_time_to_coverage_min,IPPO,4,0.86,21.729166666666668,,
+test_large,median_time_to_coverage_min,IPPO,4,0.87,22.091666666666665,,
+test_large,median_time_to_coverage_min,IPPO,4,0.88,22.46111111111111,,
+test_large,median_time_to_coverage_min,IPPO,4,0.89,22.815277777777776,,
+test_large,median_time_to_coverage_min,IPPO,4,0.9,23.145833333333332,,
+test_large,median_time_to_coverage_min,IPPO,4,0.91,23.483333333333334,,
+test_large,median_time_to_coverage_min,IPPO,4,0.92,23.908333333333335,,
+test_large,median_time_to_coverage_min,IPPO,4,0.93,24.379166666666666,,
+test_large,median_time_to_coverage_min,IPPO,4,0.94,24.830555555555556,,
+test_large,median_time_to_coverage_min,IPPO,4,0.95,25.443055555555553,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.01,0.23055555555555554,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.02,0.45972222222222225,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.03,0.6902777777777779,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.04,0.9111111111111112,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.05,1.1333333333333333,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.06,1.347222222222222,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.07,1.5680555555555555,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.08,1.7944444444444443,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.09,2.013888888888889,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.1,2.236111111111111,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.11,2.463888888888889,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.12,2.691666666666667,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.13,2.9097222222222223,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.14,3.1472222222222226,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.15,3.3680555555555554,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.16,3.5861111111111112,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.17,3.8222222222222224,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.18,4.048611111111112,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.19,4.277777777777777,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.2,4.516666666666667,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.21,4.747222222222223,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.22,4.98888888888889,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.23,5.243055555555556,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.24,5.459722222222223,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.25,5.705555555555557,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.26,5.944444444444444,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.27,6.19861111111111,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.28,6.448611111111111,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.29,6.695833333333334,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.3,6.9375,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.31,7.188888888888889,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.32,7.444444444444444,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.33,7.718055555555555,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.34,7.97638888888889,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.35,8.240277777777777,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.36,8.4875,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.37,8.729166666666666,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.38,8.95277777777778,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.39,9.183333333333334,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.4,9.425,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.41,9.676388888888887,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.42,9.930555555555555,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.43,10.179166666666667,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.44,10.436111111111112,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.45,10.731944444444444,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.46,11.002777777777778,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.47,11.254166666666666,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.48,11.505555555555555,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.49,11.741666666666667,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.5,12.013888888888888,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.51,12.283333333333333,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.52,12.545833333333333,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.53,12.798611111111112,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.54,13.0375,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.55,13.27638888888889,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.56,13.541666666666666,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.57,13.797222222222222,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.58,14.069444444444446,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.59,14.31111111111111,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.6,14.559722222222222,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.61,14.815277777777778,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.62,15.063888888888888,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.63,15.326388888888888,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.64,15.570833333333333,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.65,15.8375,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.66,16.106944444444444,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.67,16.381944444444446,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.68,16.663888888888888,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.69,16.95,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.7,17.233333333333334,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.71,17.527777777777775,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.72,17.808333333333334,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.73,18.056944444444447,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.74,18.326388888888893,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.75,18.597222222222225,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.76,18.8375,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.77,19.088888888888892,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.78,19.341666666666665,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.79,19.62638888888889,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.8,19.929166666666667,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.81,20.230555555555554,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.82,20.53055555555556,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.83,20.831944444444442,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.84,21.104166666666668,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.85,21.381944444444443,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.86,21.729166666666668,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.87,22.091666666666665,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.88,22.46111111111111,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.89,22.815277777777776,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.9,23.145833333333332,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.91,23.483333333333334,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.92,23.908333333333335,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.93,24.379166666666666,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.94,24.830555555555556,,
+test_large,median_time_to_coverage_min,IPPO + flip,4,0.95,25.443055555555553,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.01,0.23055555555555554,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.02,0.45972222222222225,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.03,0.6902777777777779,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.04,0.9111111111111112,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.05,1.1333333333333333,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.06,1.347222222222222,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.07,1.5680555555555555,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.08,1.7944444444444443,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.09,2.013888888888889,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.1,2.236111111111111,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.11,2.463888888888889,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.12,2.691666666666667,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.13,2.9097222222222223,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.14,3.1472222222222226,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.15,3.3680555555555554,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.16,3.5861111111111112,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.17,3.8222222222222224,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.18,4.048611111111112,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.19,4.277777777777777,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.2,4.516666666666667,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.21,4.747222222222223,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.22,4.98888888888889,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.23,5.243055555555556,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.24,5.459722222222223,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.25,5.705555555555557,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.26,5.944444444444444,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.27,6.19861111111111,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.28,6.448611111111111,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.29,6.695833333333334,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.3,6.9375,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.31,7.188888888888889,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.32,7.444444444444444,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.33,7.718055555555555,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.34,7.97638888888889,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.35,8.240277777777777,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.36,8.4875,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.37,8.729166666666666,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.38,8.95277777777778,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.39,9.183333333333334,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.4,9.425,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.41,9.676388888888887,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.42,9.930555555555555,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.43,10.179166666666667,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.44,10.436111111111112,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.45,10.731944444444444,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.46,11.002777777777778,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.47,11.254166666666666,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.48,11.505555555555555,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.49,11.741666666666667,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.5,12.013888888888888,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.51,12.283333333333333,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.52,12.545833333333333,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.53,12.798611111111112,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.54,13.0375,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.55,13.27638888888889,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.56,13.541666666666666,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.57,13.797222222222222,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.58,14.069444444444446,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.59,14.31111111111111,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.6,14.559722222222222,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.61,14.815277777777778,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.62,15.063888888888888,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.63,15.326388888888888,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.64,15.570833333333333,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.65,15.8375,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.66,16.106944444444444,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.67,16.381944444444446,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.68,16.663888888888888,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.69,16.95,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.7,17.233333333333334,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.71,17.527777777777775,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.72,17.808333333333334,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.73,18.056944444444447,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.74,18.326388888888893,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.75,18.597222222222225,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.76,18.8375,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.77,19.088888888888892,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.78,19.341666666666665,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.79,19.62638888888889,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.8,19.929166666666667,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.81,20.23194444444444,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.82,20.53055555555556,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.83,20.831944444444442,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.84,21.104166666666668,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.85,21.381944444444443,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.86,21.729166666666668,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.87,22.091666666666665,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.88,22.46111111111111,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.89,22.815277777777776,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.9,23.145833333333332,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.91,23.483333333333334,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.92,23.908333333333335,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.93,24.379166666666666,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.94,24.830555555555556,,
+test_large,median_time_to_coverage_min,IPPO (last),4,0.95,25.443055555555553,,
 test_small,overlap_vs_coverage,Single-agent xN,4,0.05,0.028843885311701647,0.021624046176545685,0.036063724446857605
 test_small,overlap_vs_coverage,Single-agent xN,4,0.07,0.05359050642893028,0.0425501596519383,0.06463085320592227
 test_small,overlap_vs_coverage,Single-agent xN,4,0.09,0.07664287659766464,0.06251755443922058,0.0907681987561087
@@ -1908,6 +2754,150 @@ test_small,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.93,0.391234
 test_small,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.95,0.43192016502221425,0.4038064707008163,0.4600338593436122
 test_small,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.97,0.49259921352068575,0.4593702163139658,0.5258282107274057
 test_small,overlap_vs_coverage,Single-agent fine-tuned xN + flip,4,0.99,0.7193580622474351,0.6461386201527238,0.7925775043421465
+test_small,overlap_vs_coverage,IPPO,4,0.05,0.011245584529436503,0.008677218840217283,0.013813950218655722
+test_small,overlap_vs_coverage,IPPO,4,0.07,0.019119575833513713,0.01544085648231785,0.022798295184709574
+test_small,overlap_vs_coverage,IPPO,4,0.09,0.0256321193165301,0.02130694228331563,0.029957296349744568
+test_small,overlap_vs_coverage,IPPO,4,0.11,0.032359503349677354,0.02740779268652609,0.03731121401282862
+test_small,overlap_vs_coverage,IPPO,4,0.13,0.03902453826740384,0.03357914435889192,0.04446993217591576
+test_small,overlap_vs_coverage,IPPO,4,0.15,0.04595981059246697,0.040232479241502604,0.05168714194343133
+test_small,overlap_vs_coverage,IPPO,4,0.17,0.05430234222556465,0.048102734265235356,0.06050195018589394
+test_small,overlap_vs_coverage,IPPO,4,0.19,0.06188029224014219,0.055563407613277924,0.06819717686700645
+test_small,overlap_vs_coverage,IPPO,4,0.21,0.06904295385543567,0.06255510373952863,0.07553080397134271
+test_small,overlap_vs_coverage,IPPO,4,0.23,0.07595063959170753,0.06927321782838004,0.08262806135503502
+test_small,overlap_vs_coverage,IPPO,4,0.25,0.08301673309605881,0.07622206809652203,0.08981139809559559
+test_small,overlap_vs_coverage,IPPO,4,0.27,0.08913957506728667,0.08227698090262922,0.09600216923194413
+test_small,overlap_vs_coverage,IPPO,4,0.29,0.09518980655663956,0.08818552496287052,0.10219408815040859
+test_small,overlap_vs_coverage,IPPO,4,0.31,0.10120507034628343,0.09413687881053498,0.10827326188203187
+test_small,overlap_vs_coverage,IPPO,4,0.33,0.1087415155566608,0.10144692938122486,0.11603610173209673
+test_small,overlap_vs_coverage,IPPO,4,0.35,0.11686141799514495,0.10896020202365687,0.12476263396663302
+test_small,overlap_vs_coverage,IPPO,4,0.37,0.12469503984476128,0.11641778118697954,0.13297229850254302
+test_small,overlap_vs_coverage,IPPO,4,0.39,0.13149619065846008,0.12303555582441304,0.1399568254925071
+test_small,overlap_vs_coverage,IPPO,4,0.41,0.1373094259264568,0.12843863173104686,0.14618022012186677
+test_small,overlap_vs_coverage,IPPO,4,0.43,0.14304499783863625,0.13370835258868327,0.15238164308858923
+test_small,overlap_vs_coverage,IPPO,4,0.45,0.1493633120507002,0.13974111957353852,0.15898550452786187
+test_small,overlap_vs_coverage,IPPO,4,0.47,0.15663503559927144,0.14648715387031444,0.16678291732822845
+test_small,overlap_vs_coverage,IPPO,4,0.49,0.1639078472306331,0.15337569334949164,0.17444000111177455
+test_small,overlap_vs_coverage,IPPO,4,0.51,0.17154036521911617,0.1600074420273685,0.18307328841086384
+test_small,overlap_vs_coverage,IPPO,4,0.53,0.17905092333753905,0.1669553255376764,0.19114652113740171
+test_small,overlap_vs_coverage,IPPO,4,0.55,0.18703919536123675,0.17433410110793696,0.19974428961453655
+test_small,overlap_vs_coverage,IPPO,4,0.57,0.1970117787271738,0.18349989418460294,0.21052366326974464
+test_small,overlap_vs_coverage,IPPO,4,0.59,0.2042882267509897,0.19065817856643397,0.21791827493554544
+test_small,overlap_vs_coverage,IPPO,4,0.61,0.21153826201955478,0.19779586095821297,0.2252806630808966
+test_small,overlap_vs_coverage,IPPO,4,0.63,0.21890207150330152,0.20484231332102287,0.23296182968558016
+test_small,overlap_vs_coverage,IPPO,4,0.65,0.22673976415147387,0.21234021345113707,0.24113931485181067
+test_small,overlap_vs_coverage,IPPO,4,0.67,0.23472506233801446,0.2194999636712182,0.2499501610048107
+test_small,overlap_vs_coverage,IPPO,4,0.69,0.24187827929854394,0.22607989426379693,0.25767666433329095
+test_small,overlap_vs_coverage,IPPO,4,0.71,0.25081119033197563,0.23485553337261217,0.2667668472913391
+test_small,overlap_vs_coverage,IPPO,4,0.73,0.2628540540238221,0.245714564197413,0.27999354385023123
+test_small,overlap_vs_coverage,IPPO,4,0.75,0.2783246205250422,0.2598821404610793,0.2967671005890051
+test_small,overlap_vs_coverage,IPPO,4,0.77,0.2994401218245426,0.2786579294620267,0.3202223141870585
+test_small,overlap_vs_coverage,IPPO,4,0.79,0.3166576398164034,0.2943999652301861,0.3389153144026207
+test_small,overlap_vs_coverage,IPPO,4,0.81,0.3299807823201021,0.30659709534437957,0.3533644692958246
+test_small,overlap_vs_coverage,IPPO,4,0.83,0.34451939545571797,0.31969944968648667,0.36933934122494927
+test_small,overlap_vs_coverage,IPPO,4,0.85,0.3589873535186053,0.33255402201863415,0.3854206850185764
+test_small,overlap_vs_coverage,IPPO,4,0.87,0.3739121103783449,0.34634394934130275,0.401480271415387
+test_small,overlap_vs_coverage,IPPO,4,0.89,0.39026945881545544,0.3618649274190067,0.41867399021190416
+test_small,overlap_vs_coverage,IPPO,4,0.91,0.40788128510117533,0.37862577557236055,0.4371367946299901
+test_small,overlap_vs_coverage,IPPO,4,0.93,0.4287403743465741,0.3987148977505875,0.45876585094256067
+test_small,overlap_vs_coverage,IPPO,4,0.95,0.4542319216330846,0.42409828086342327,0.484365562402746
+test_small,overlap_vs_coverage,IPPO,4,0.97,0.48656420474251116,0.4565254303849285,0.5166029791000938
+test_small,overlap_vs_coverage,IPPO,4,0.99,0.5662582618494828,0.5370051742682147,0.5955113494307509
+test_small,overlap_vs_coverage,IPPO + flip,4,0.05,0.011245584529436503,0.008677218840217283,0.013813950218655722
+test_small,overlap_vs_coverage,IPPO + flip,4,0.07,0.019119575833513713,0.01544085648231785,0.022798295184709574
+test_small,overlap_vs_coverage,IPPO + flip,4,0.09,0.0256321193165301,0.02130694228331563,0.029957296349744568
+test_small,overlap_vs_coverage,IPPO + flip,4,0.11,0.032359503349677354,0.02740779268652609,0.03731121401282862
+test_small,overlap_vs_coverage,IPPO + flip,4,0.13,0.03902453826740384,0.03357914435889192,0.04446993217591576
+test_small,overlap_vs_coverage,IPPO + flip,4,0.15,0.04595981059246697,0.040232479241502604,0.05168714194343133
+test_small,overlap_vs_coverage,IPPO + flip,4,0.17,0.05430234222556465,0.048102734265235356,0.06050195018589394
+test_small,overlap_vs_coverage,IPPO + flip,4,0.19,0.06188029224014219,0.055563407613277924,0.06819717686700645
+test_small,overlap_vs_coverage,IPPO + flip,4,0.21,0.06904295385543567,0.06255510373952863,0.07553080397134271
+test_small,overlap_vs_coverage,IPPO + flip,4,0.23,0.07595063959170753,0.06927321782838004,0.08262806135503502
+test_small,overlap_vs_coverage,IPPO + flip,4,0.25,0.08301673309605881,0.07622206809652203,0.08981139809559559
+test_small,overlap_vs_coverage,IPPO + flip,4,0.27,0.08913957506728667,0.08227698090262922,0.09600216923194413
+test_small,overlap_vs_coverage,IPPO + flip,4,0.29,0.09518980655663956,0.08818552496287052,0.10219408815040859
+test_small,overlap_vs_coverage,IPPO + flip,4,0.31,0.10120507034628343,0.09413687881053498,0.10827326188203187
+test_small,overlap_vs_coverage,IPPO + flip,4,0.33,0.1087415155566608,0.10144692938122486,0.11603610173209673
+test_small,overlap_vs_coverage,IPPO + flip,4,0.35,0.11686141799514495,0.10896020202365687,0.12476263396663302
+test_small,overlap_vs_coverage,IPPO + flip,4,0.37,0.12469503984476128,0.11641778118697954,0.13297229850254302
+test_small,overlap_vs_coverage,IPPO + flip,4,0.39,0.13149619065846008,0.12303555582441304,0.1399568254925071
+test_small,overlap_vs_coverage,IPPO + flip,4,0.41,0.1373094259264568,0.12843863173104686,0.14618022012186677
+test_small,overlap_vs_coverage,IPPO + flip,4,0.43,0.14304499783863625,0.13370835258868327,0.15238164308858923
+test_small,overlap_vs_coverage,IPPO + flip,4,0.45,0.14946052682896455,0.13983830538701306,0.15908274827091604
+test_small,overlap_vs_coverage,IPPO + flip,4,0.47,0.15681033256153265,0.14666136792677248,0.16695929719629282
+test_small,overlap_vs_coverage,IPPO + flip,4,0.49,0.1640492537866036,0.1535158192068256,0.17458268836638158
+test_small,overlap_vs_coverage,IPPO + flip,4,0.51,0.1716788181165854,0.16014932196498471,0.18320831426818607
+test_small,overlap_vs_coverage,IPPO + flip,4,0.53,0.17923628186186158,0.16714648054899225,0.1913260831747309
+test_small,overlap_vs_coverage,IPPO + flip,4,0.55,0.18735737647861245,0.17466458614467717,0.20005016681254773
+test_small,overlap_vs_coverage,IPPO + flip,4,0.57,0.19737980815271533,0.18388697841006502,0.21087263789536564
+test_small,overlap_vs_coverage,IPPO + flip,4,0.59,0.20462432567030192,0.1910094973884539,0.21823915395214993
+test_small,overlap_vs_coverage,IPPO + flip,4,0.61,0.211819077283144,0.19808976776791318,0.22554838679837483
+test_small,overlap_vs_coverage,IPPO + flip,4,0.63,0.2191284603749713,0.20508120360233068,0.23317571714761193
+test_small,overlap_vs_coverage,IPPO + flip,4,0.65,0.2269522567962607,0.21256723900458444,0.24133727458793694
+test_small,overlap_vs_coverage,IPPO + flip,4,0.67,0.23493672379602992,0.21972138725869456,0.2501520603333653
+test_small,overlap_vs_coverage,IPPO + flip,4,0.69,0.2421117603778839,0.22632184900713112,0.2579016717486367
+test_small,overlap_vs_coverage,IPPO + flip,4,0.71,0.2510916641602914,0.23514654190510104,0.26703678641548173
+test_small,overlap_vs_coverage,IPPO + flip,4,0.73,0.2632966662943363,0.24616778737464434,0.28042554521402824
+test_small,overlap_vs_coverage,IPPO + flip,4,0.75,0.27873179480433463,0.26029857961342084,0.2971650099952484
+test_small,overlap_vs_coverage,IPPO + flip,4,0.77,0.2998351613928874,0.2790684978723093,0.3206018249134655
+test_small,overlap_vs_coverage,IPPO + flip,4,0.79,0.3171139215181271,0.29486721674145994,0.3393606262947943
+test_small,overlap_vs_coverage,IPPO + flip,4,0.81,0.3304323139290015,0.3070711556715354,0.3537934721864676
+test_small,overlap_vs_coverage,IPPO + flip,4,0.83,0.3449638633678356,0.3201760407840123,0.36975168595165886
+test_small,overlap_vs_coverage,IPPO + flip,4,0.85,0.3594346178819736,0.3330419498407766,0.3858272859231706
+test_small,overlap_vs_coverage,IPPO + flip,4,0.87,0.37437370225787164,0.34685444798818676,0.4018929565275565
+test_small,overlap_vs_coverage,IPPO + flip,4,0.89,0.390674881413579,0.36231966133402516,0.4190301014931328
+test_small,overlap_vs_coverage,IPPO + flip,4,0.91,0.40825735146800674,0.3790539216226935,0.43746078131331995
+test_small,overlap_vs_coverage,IPPO + flip,4,0.93,0.4290416633089383,0.3990614895097777,0.45902183710809885
+test_small,overlap_vs_coverage,IPPO + flip,4,0.95,0.45452150235573446,0.42444080419309244,0.4846022005183765
+test_small,overlap_vs_coverage,IPPO + flip,4,0.97,0.48684259220957754,0.4568656807847438,0.5168195036344113
+test_small,overlap_vs_coverage,IPPO + flip,4,0.99,0.5664686793585618,0.5372802304574642,0.5956571282596594
+test_small,overlap_vs_coverage,IPPO (last),4,0.05,0.011245584529436503,0.008677218840217283,0.013813950218655722
+test_small,overlap_vs_coverage,IPPO (last),4,0.07,0.019119575833513713,0.01544085648231785,0.022798295184709574
+test_small,overlap_vs_coverage,IPPO (last),4,0.09,0.0256321193165301,0.02130694228331563,0.029957296349744568
+test_small,overlap_vs_coverage,IPPO (last),4,0.11,0.032359503349677354,0.02740779268652609,0.03731121401282862
+test_small,overlap_vs_coverage,IPPO (last),4,0.13,0.03902453826740384,0.03357914435889192,0.04446993217591576
+test_small,overlap_vs_coverage,IPPO (last),4,0.15,0.04595981059246697,0.040232479241502604,0.05168714194343133
+test_small,overlap_vs_coverage,IPPO (last),4,0.17,0.05430234222556465,0.048102734265235356,0.06050195018589394
+test_small,overlap_vs_coverage,IPPO (last),4,0.19,0.06188029224014219,0.055563407613277924,0.06819717686700645
+test_small,overlap_vs_coverage,IPPO (last),4,0.21,0.06904295385543567,0.06255510373952863,0.07553080397134271
+test_small,overlap_vs_coverage,IPPO (last),4,0.23,0.07595063959170753,0.06927321782838004,0.08262806135503502
+test_small,overlap_vs_coverage,IPPO (last),4,0.25,0.08301673309605881,0.07622206809652203,0.08981139809559559
+test_small,overlap_vs_coverage,IPPO (last),4,0.27,0.08913957506728667,0.08227698090262922,0.09600216923194413
+test_small,overlap_vs_coverage,IPPO (last),4,0.29,0.09518980655663956,0.08818552496287052,0.10219408815040859
+test_small,overlap_vs_coverage,IPPO (last),4,0.31,0.10120507034628343,0.09413687881053498,0.10827326188203187
+test_small,overlap_vs_coverage,IPPO (last),4,0.33,0.1087415155566608,0.10144692938122486,0.11603610173209673
+test_small,overlap_vs_coverage,IPPO (last),4,0.35,0.11686141799514495,0.10896020202365687,0.12476263396663302
+test_small,overlap_vs_coverage,IPPO (last),4,0.37,0.12469503984476128,0.11641778118697954,0.13297229850254302
+test_small,overlap_vs_coverage,IPPO (last),4,0.39,0.13149619065846008,0.12303555582441304,0.1399568254925071
+test_small,overlap_vs_coverage,IPPO (last),4,0.41,0.1373094259264568,0.12843863173104686,0.14618022012186677
+test_small,overlap_vs_coverage,IPPO (last),4,0.43,0.14304499783863625,0.13370835258868327,0.15238164308858923
+test_small,overlap_vs_coverage,IPPO (last),4,0.45,0.1493633120507002,0.13974111957353852,0.15898550452786187
+test_small,overlap_vs_coverage,IPPO (last),4,0.47,0.15663503559927144,0.14648715387031444,0.16678291732822845
+test_small,overlap_vs_coverage,IPPO (last),4,0.49,0.1639078472306331,0.15337569334949164,0.17444000111177455
+test_small,overlap_vs_coverage,IPPO (last),4,0.51,0.17154036521911617,0.1600074420273685,0.18307328841086384
+test_small,overlap_vs_coverage,IPPO (last),4,0.53,0.17905092333753905,0.1669553255376764,0.19114652113740171
+test_small,overlap_vs_coverage,IPPO (last),4,0.55,0.18703919536123675,0.17433410110793696,0.19974428961453655
+test_small,overlap_vs_coverage,IPPO (last),4,0.57,0.1970117787271738,0.18349989418460294,0.21052366326974464
+test_small,overlap_vs_coverage,IPPO (last),4,0.59,0.2042882267509897,0.19065817856643397,0.21791827493554544
+test_small,overlap_vs_coverage,IPPO (last),4,0.61,0.21153826201955478,0.19779586095821297,0.2252806630808966
+test_small,overlap_vs_coverage,IPPO (last),4,0.63,0.21890207150330152,0.20484231332102287,0.23296182968558016
+test_small,overlap_vs_coverage,IPPO (last),4,0.65,0.22673976415147387,0.21234021345113707,0.24113931485181067
+test_small,overlap_vs_coverage,IPPO (last),4,0.67,0.23472506233801446,0.2194999636712182,0.2499501610048107
+test_small,overlap_vs_coverage,IPPO (last),4,0.69,0.24187827929854394,0.22607989426379693,0.25767666433329095
+test_small,overlap_vs_coverage,IPPO (last),4,0.71,0.25081119033197563,0.23485553337261217,0.2667668472913391
+test_small,overlap_vs_coverage,IPPO (last),4,0.73,0.2628540540238221,0.245714564197413,0.27999354385023123
+test_small,overlap_vs_coverage,IPPO (last),4,0.75,0.2783246205250422,0.2598821404610793,0.2967671005890051
+test_small,overlap_vs_coverage,IPPO (last),4,0.77,0.2994401218245426,0.2786579294620267,0.3202223141870585
+test_small,overlap_vs_coverage,IPPO (last),4,0.79,0.3166576398164034,0.2943999652301861,0.3389153144026207
+test_small,overlap_vs_coverage,IPPO (last),4,0.81,0.3299807823201021,0.30659709534437957,0.3533644692958246
+test_small,overlap_vs_coverage,IPPO (last),4,0.83,0.34451939545571797,0.31969944968648667,0.36933934122494927
+test_small,overlap_vs_coverage,IPPO (last),4,0.85,0.3589873535186053,0.33255402201863415,0.3854206850185764
+test_small,overlap_vs_coverage,IPPO (last),4,0.87,0.3739121103783449,0.34634394934130275,0.401480271415387
+test_small,overlap_vs_coverage,IPPO (last),4,0.89,0.39026945881545544,0.3618649274190067,0.41867399021190416
+test_small,overlap_vs_coverage,IPPO (last),4,0.91,0.40788128510117533,0.37862577557236055,0.4371367946299901
+test_small,overlap_vs_coverage,IPPO (last),4,0.93,0.4287403743465741,0.3987148977505875,0.45876585094256067
+test_small,overlap_vs_coverage,IPPO (last),4,0.95,0.4542319216330846,0.42409828086342327,0.484365562402746
+test_small,overlap_vs_coverage,IPPO (last),4,0.97,0.48656420474251116,0.4565254303849285,0.5166029791000938
+test_small,overlap_vs_coverage,IPPO (last),4,0.99,0.5662582618494828,0.5370051742682147,0.5955113494307509
 test_small,median_time_to_coverage_min,Single-agent xN,4,0.01,0.008333333333333333,,
 test_small,median_time_to_coverage_min,Single-agent xN,4,0.02,0.01388888888888889,,
 test_small,median_time_to_coverage_min,Single-agent xN,4,0.03,0.03333333333333333,,
@@ -2468,3 +3458,300 @@ test_small,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.96,
 test_small,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.97,3.0388888888888888,,
 test_small,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.98,3.140277777777778,,
 test_small,median_time_to_coverage_min,Single-agent fine-tuned xN + flip,4,0.99,3.7527777777777778,,
+test_small,median_time_to_coverage_min,IPPO,4,0.01,0.008333333333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.02,0.008333333333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.03,0.02222222222222222,,
+test_small,median_time_to_coverage_min,IPPO,4,0.04,0.041666666666666664,,
+test_small,median_time_to_coverage_min,IPPO,4,0.05,0.058333333333333334,,
+test_small,median_time_to_coverage_min,IPPO,4,0.06,0.075,,
+test_small,median_time_to_coverage_min,IPPO,4,0.07,0.09027777777777776,,
+test_small,median_time_to_coverage_min,IPPO,4,0.08,0.10555555555555556,,
+test_small,median_time_to_coverage_min,IPPO,4,0.09,0.12222222222222223,,
+test_small,median_time_to_coverage_min,IPPO,4,0.1,0.1388888888888889,,
+test_small,median_time_to_coverage_min,IPPO,4,0.11,0.15694444444444447,,
+test_small,median_time_to_coverage_min,IPPO,4,0.12,0.17361111111111113,,
+test_small,median_time_to_coverage_min,IPPO,4,0.13,0.1861111111111111,,
+test_small,median_time_to_coverage_min,IPPO,4,0.14,0.19861111111111113,,
+test_small,median_time_to_coverage_min,IPPO,4,0.15,0.2125,,
+test_small,median_time_to_coverage_min,IPPO,4,0.16,0.23055555555555554,,
+test_small,median_time_to_coverage_min,IPPO,4,0.17,0.25,,
+test_small,median_time_to_coverage_min,IPPO,4,0.18,0.26666666666666666,,
+test_small,median_time_to_coverage_min,IPPO,4,0.19,0.2805555555555556,,
+test_small,median_time_to_coverage_min,IPPO,4,0.2,0.29583333333333334,,
+test_small,median_time_to_coverage_min,IPPO,4,0.21,0.31388888888888894,,
+test_small,median_time_to_coverage_min,IPPO,4,0.22,0.32638888888888895,,
+test_small,median_time_to_coverage_min,IPPO,4,0.23,0.3430555555555556,,
+test_small,median_time_to_coverage_min,IPPO,4,0.24,0.36111111111111105,,
+test_small,median_time_to_coverage_min,IPPO,4,0.25,0.37638888888888894,,
+test_small,median_time_to_coverage_min,IPPO,4,0.26,0.3902777777777777,,
+test_small,median_time_to_coverage_min,IPPO,4,0.27,0.40277777777777773,,
+test_small,median_time_to_coverage_min,IPPO,4,0.28,0.42083333333333334,,
+test_small,median_time_to_coverage_min,IPPO,4,0.29,0.4375,,
+test_small,median_time_to_coverage_min,IPPO,4,0.3,0.45416666666666666,,
+test_small,median_time_to_coverage_min,IPPO,4,0.31,0.4722222222222222,,
+test_small,median_time_to_coverage_min,IPPO,4,0.32,0.4875,,
+test_small,median_time_to_coverage_min,IPPO,4,0.33,0.5097222222222222,,
+test_small,median_time_to_coverage_min,IPPO,4,0.34,0.5277777777777778,,
+test_small,median_time_to_coverage_min,IPPO,4,0.35,0.5444444444444445,,
+test_small,median_time_to_coverage_min,IPPO,4,0.36,0.5597222222222222,,
+test_small,median_time_to_coverage_min,IPPO,4,0.37,0.575,,
+test_small,median_time_to_coverage_min,IPPO,4,0.38,0.5930555555555554,,
+test_small,median_time_to_coverage_min,IPPO,4,0.39,0.6097222222222222,,
+test_small,median_time_to_coverage_min,IPPO,4,0.4,0.6263888888888888,,
+test_small,median_time_to_coverage_min,IPPO,4,0.41,0.6458333333333334,,
+test_small,median_time_to_coverage_min,IPPO,4,0.42,0.6611111111111111,,
+test_small,median_time_to_coverage_min,IPPO,4,0.43,0.6763888888888888,,
+test_small,median_time_to_coverage_min,IPPO,4,0.44,0.6888888888888888,,
+test_small,median_time_to_coverage_min,IPPO,4,0.45,0.7097222222222223,,
+test_small,median_time_to_coverage_min,IPPO,4,0.46,0.7319444444444445,,
+test_small,median_time_to_coverage_min,IPPO,4,0.47,0.75,,
+test_small,median_time_to_coverage_min,IPPO,4,0.48,0.7722222222222221,,
+test_small,median_time_to_coverage_min,IPPO,4,0.49,0.7958333333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.5,0.8125,,
+test_small,median_time_to_coverage_min,IPPO,4,0.51,0.8319444444444445,,
+test_small,median_time_to_coverage_min,IPPO,4,0.52,0.8583333333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.53,0.8888888888888888,,
+test_small,median_time_to_coverage_min,IPPO,4,0.54,0.9111111111111112,,
+test_small,median_time_to_coverage_min,IPPO,4,0.55,0.9277777777777777,,
+test_small,median_time_to_coverage_min,IPPO,4,0.56,0.95,,
+test_small,median_time_to_coverage_min,IPPO,4,0.57,0.9708333333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.58,0.9986111111111111,,
+test_small,median_time_to_coverage_min,IPPO,4,0.59,1.0194444444444444,,
+test_small,median_time_to_coverage_min,IPPO,4,0.6,1.0375,,
+test_small,median_time_to_coverage_min,IPPO,4,0.61,1.0583333333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.62,1.0736111111111113,,
+test_small,median_time_to_coverage_min,IPPO,4,0.63,1.0875,,
+test_small,median_time_to_coverage_min,IPPO,4,0.64,1.1041666666666667,,
+test_small,median_time_to_coverage_min,IPPO,4,0.65,1.1222222222222222,,
+test_small,median_time_to_coverage_min,IPPO,4,0.66,1.1444444444444444,,
+test_small,median_time_to_coverage_min,IPPO,4,0.67,1.1625,,
+test_small,median_time_to_coverage_min,IPPO,4,0.68,1.186111111111111,,
+test_small,median_time_to_coverage_min,IPPO,4,0.69,1.2055555555555555,,
+test_small,median_time_to_coverage_min,IPPO,4,0.7,1.225,,
+test_small,median_time_to_coverage_min,IPPO,4,0.71,1.2458333333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.72,1.273611111111111,,
+test_small,median_time_to_coverage_min,IPPO,4,0.73,1.2930555555555554,,
+test_small,median_time_to_coverage_min,IPPO,4,0.74,1.3166666666666667,,
+test_small,median_time_to_coverage_min,IPPO,4,0.75,1.3458333333333334,,
+test_small,median_time_to_coverage_min,IPPO,4,0.76,1.3861111111111108,,
+test_small,median_time_to_coverage_min,IPPO,4,0.77,1.409722222222222,,
+test_small,median_time_to_coverage_min,IPPO,4,0.78,1.4305555555555556,,
+test_small,median_time_to_coverage_min,IPPO,4,0.79,1.451388888888889,,
+test_small,median_time_to_coverage_min,IPPO,4,0.8,1.476388888888889,,
+test_small,median_time_to_coverage_min,IPPO,4,0.81,1.498611111111111,,
+test_small,median_time_to_coverage_min,IPPO,4,0.82,1.5416666666666667,,
+test_small,median_time_to_coverage_min,IPPO,4,0.83,1.5875,,
+test_small,median_time_to_coverage_min,IPPO,4,0.84,1.6180555555555556,,
+test_small,median_time_to_coverage_min,IPPO,4,0.85,1.6472222222222224,,
+test_small,median_time_to_coverage_min,IPPO,4,0.86,1.6777777777777776,,
+test_small,median_time_to_coverage_min,IPPO,4,0.87,1.7027777777777777,,
+test_small,median_time_to_coverage_min,IPPO,4,0.88,1.7333333333333334,,
+test_small,median_time_to_coverage_min,IPPO,4,0.89,1.7666666666666666,,
+test_small,median_time_to_coverage_min,IPPO,4,0.9,1.7930555555555554,,
+test_small,median_time_to_coverage_min,IPPO,4,0.91,1.8222222222222222,,
+test_small,median_time_to_coverage_min,IPPO,4,0.92,1.847222222222222,,
+test_small,median_time_to_coverage_min,IPPO,4,0.93,1.8722222222222225,,
+test_small,median_time_to_coverage_min,IPPO,4,0.94,1.9055555555555554,,
+test_small,median_time_to_coverage_min,IPPO,4,0.95,1.9583333333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.96,1.9930555555555556,,
+test_small,median_time_to_coverage_min,IPPO,4,0.97,2.058333333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.98,2.120833333333333,,
+test_small,median_time_to_coverage_min,IPPO,4,0.99,2.3013888888888885,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.01,0.008333333333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.02,0.008333333333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.03,0.02222222222222222,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.04,0.041666666666666664,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.05,0.058333333333333334,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.06,0.075,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.07,0.09027777777777776,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.08,0.10555555555555556,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.09,0.12222222222222223,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.1,0.1388888888888889,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.11,0.15694444444444447,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.12,0.17361111111111113,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.13,0.1861111111111111,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.14,0.19861111111111113,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.15,0.2125,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.16,0.23055555555555554,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.17,0.25,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.18,0.26666666666666666,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.19,0.2805555555555556,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.2,0.29583333333333334,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.21,0.31388888888888894,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.22,0.32638888888888895,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.23,0.3430555555555556,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.24,0.36111111111111105,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.25,0.37638888888888894,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.26,0.3902777777777777,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.27,0.40277777777777773,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.28,0.42083333333333334,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.29,0.4375,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.3,0.45416666666666666,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.31,0.4722222222222222,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.32,0.4875,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.33,0.5097222222222222,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.34,0.5277777777777778,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.35,0.5444444444444445,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.36,0.5597222222222222,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.37,0.575,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.38,0.5930555555555554,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.39,0.6097222222222222,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.4,0.6263888888888888,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.41,0.6458333333333334,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.42,0.6611111111111111,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.43,0.6763888888888888,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.44,0.6888888888888888,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.45,0.7097222222222223,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.46,0.7319444444444445,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.47,0.75,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.48,0.7722222222222221,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.49,0.7958333333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.5,0.8125,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.51,0.8319444444444445,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.52,0.8583333333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.53,0.8888888888888888,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.54,0.9111111111111112,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.55,0.9277777777777777,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.56,0.95,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.57,0.9708333333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.58,0.9986111111111111,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.59,1.0194444444444444,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.6,1.0375,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.61,1.0583333333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.62,1.0736111111111113,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.63,1.0875,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.64,1.1041666666666667,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.65,1.1222222222222222,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.66,1.1444444444444444,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.67,1.1625,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.68,1.186111111111111,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.69,1.2055555555555555,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.7,1.225,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.71,1.2458333333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.72,1.273611111111111,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.73,1.2930555555555554,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.74,1.3166666666666667,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.75,1.3458333333333334,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.76,1.3861111111111108,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.77,1.409722222222222,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.78,1.4305555555555556,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.79,1.451388888888889,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.8,1.476388888888889,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.81,1.498611111111111,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.82,1.5416666666666667,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.83,1.5875,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.84,1.6180555555555556,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.85,1.6472222222222224,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.86,1.6777777777777776,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.87,1.7027777777777777,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.88,1.7333333333333334,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.89,1.7666666666666666,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.9,1.7930555555555554,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.91,1.8222222222222222,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.92,1.847222222222222,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.93,1.8722222222222225,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.94,1.9055555555555554,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.95,1.9583333333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.96,1.9930555555555556,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.97,2.058333333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.98,2.120833333333333,,
+test_small,median_time_to_coverage_min,IPPO + flip,4,0.99,2.3013888888888885,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.01,0.008333333333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.02,0.008333333333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.03,0.02222222222222222,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.04,0.041666666666666664,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.05,0.058333333333333334,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.06,0.075,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.07,0.09027777777777776,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.08,0.10555555555555556,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.09,0.12222222222222223,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.1,0.1388888888888889,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.11,0.15694444444444447,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.12,0.17361111111111113,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.13,0.1861111111111111,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.14,0.19861111111111113,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.15,0.2125,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.16,0.23055555555555554,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.17,0.25,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.18,0.26666666666666666,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.19,0.2805555555555556,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.2,0.29583333333333334,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.21,0.31388888888888894,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.22,0.32638888888888895,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.23,0.3430555555555556,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.24,0.36111111111111105,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.25,0.37638888888888894,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.26,0.3902777777777777,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.27,0.40277777777777773,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.28,0.42083333333333334,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.29,0.4375,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.3,0.45416666666666666,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.31,0.4722222222222222,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.32,0.4875,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.33,0.5097222222222222,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.34,0.5277777777777778,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.35,0.5444444444444445,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.36,0.5597222222222222,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.37,0.575,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.38,0.5930555555555554,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.39,0.6097222222222222,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.4,0.6263888888888888,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.41,0.6458333333333334,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.42,0.6611111111111111,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.43,0.6763888888888888,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.44,0.6888888888888888,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.45,0.7097222222222223,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.46,0.7319444444444445,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.47,0.75,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.48,0.7722222222222221,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.49,0.7958333333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.5,0.8125,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.51,0.8319444444444445,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.52,0.8583333333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.53,0.8888888888888888,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.54,0.9111111111111112,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.55,0.9277777777777777,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.56,0.95,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.57,0.9708333333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.58,0.9986111111111111,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.59,1.0194444444444444,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.6,1.0375,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.61,1.0583333333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.62,1.0736111111111113,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.63,1.0875,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.64,1.1041666666666667,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.65,1.1222222222222222,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.66,1.1444444444444444,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.67,1.1625,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.68,1.186111111111111,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.69,1.2055555555555555,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.7,1.225,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.71,1.2458333333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.72,1.273611111111111,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.73,1.2930555555555554,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.74,1.3166666666666667,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.75,1.3458333333333334,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.76,1.3861111111111108,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.77,1.409722222222222,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.78,1.4305555555555556,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.79,1.451388888888889,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.8,1.476388888888889,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.81,1.498611111111111,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.82,1.5416666666666667,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.83,1.5875,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.84,1.6180555555555556,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.85,1.6472222222222224,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.86,1.6777777777777776,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.87,1.7027777777777777,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.88,1.7333333333333334,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.89,1.7666666666666666,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.9,1.7930555555555554,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.91,1.8222222222222222,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.92,1.847222222222222,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.93,1.8722222222222225,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.94,1.9055555555555554,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.95,1.9583333333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.96,1.9930555555555556,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.97,2.058333333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.98,2.120833333333333,,
+test_small,median_time_to_coverage_min,IPPO (last),4,0.99,2.3013888888888885,,

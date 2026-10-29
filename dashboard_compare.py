@@ -12,24 +12,25 @@ One column per map set, one row per metric, against the number of robots:
   time to the goal    episodes that did not reach it count with the step
                       limit (a lower bound of their time)
   team efficiency     T_ref(1) / (N T(N)) on the same map, T_ref(1): time of
-                      the best single robot (--reference, by default the
-                      single-agent policy fine-tuned with N = 1), 1 = ideal
+                      the reference single robot (--reference, by default the
+                      single-agent policy replicated on N robots), 1 = ideal
                       linear speedup over it
   overlap at the goal only episodes that reached the goal coverage
   robot collisions    per episode (symlog scale)
   imbalance           coefficient of variation of the area covered per robot
-then the coverage over time of one team size (--ref_agents, median map) and
-the paired tests of the main pairs (--pair, by default MAPPO and IPPO against
-the fine-tuned single agent and IPPO against MAPPO, all with flip_when_stuck,
-i.e. under the same rules): relative difference B - A of the mean over maps,
-Wilcoxon signed-rank test over the maps, Holm corrected within each (map set,
-pair, metric) over the team sizes, as in compare_sa_stats.py.
+then the coverage over time of one team size (--ref_agents, median map) and,
+across the whole page, one summary table: one row per method, one column per
+metric (the ones above and the path length), mean over the map sets and team
+sizes of the mean over maps, the best of each column highlighted. The paired
+tests are in compare_sa_stats.py (stats.txt of compare_sa.sh).
 
 Lines: mean over maps of the mean over the episodes (and seeds) of a map, band:
 95 % bootstrap CI over maps. A method keeps its color with and without
-flip_when_stuck: solid with flip, dashed without, dotted for the last
-checkpoint ('(last)'). Everything shown is also written to
-<pdf name>_data/ (points.csv, tests.csv). Plotting runs on the CPU, the data
+flip_when_stuck: solid with flip, dashed without (when both are shown),
+dotted for the last checkpoint ('(last)'). By default: the single-agent policy
+replicated on N robots, MAPPO and IPPO, without flip_when_stuck, with the
+team efficiency relative to the single-agent policy with 1 robot. Everything shown is also written to
+<pdf name>_data/ (points.csv, table.csv). Plotting runs on the CPU, the data
 comes from the GPU rollouts of collect_marl.py.
 """
 import argparse
@@ -39,40 +40,42 @@ from collections import defaultdict
 
 import numpy as np
 
-from compare_sa_stats import compare, holm
 from dashboard_marl import AXIS, FONT, GRID, INK, INK_2, MUTED, SURFACE, load
 
 # Categorical slots in fixed order (dataviz reference palette), by base method
 BASE_COLORS = {'MAPPO': '#2a78d6', 'IPPO': '#eb6834', 'Single-agent fine-tuned xN': '#1baf7a',
                'Single-agent xN': '#eda100'}
 EXTRA_COLORS = ['#e87ba4', '#008300', '#6250d6', '#e34948']
-DEFAULT_METHODS = ['Single-agent xN + flip', 'Single-agent fine-tuned xN + flip', 'MAPPO + flip', 'MAPPO',
-                   'IPPO + flip', 'IPPO']
-DEFAULT_PAIRS = ['Single-agent fine-tuned xN + flip:MAPPO + flip', 'Single-agent fine-tuned xN + flip:IPPO + flip',
-                 'MAPPO + flip:IPPO + flip']
-DEFAULT_REFERENCE = 'Single-agent fine-tuned xN + flip'
+DEFAULT_METHODS = ['Single-agent xN', 'MAPPO', 'IPPO']
+DEFAULT_REFERENCE = 'Single-agent xN'
+DEFAULT_TITLE = 'Single agent xN vs MAPPO vs IPPO: multi-robot coverage'
 # (key, row title, axis label, lower is better, scale of the shown values)
 ROWS = [
     ('success', 'Success rate', 'episodes [%]', False, 100),
     ('time', 'Time to the goal coverage', 'time [min], log', True, 1),
-    ('efficiency', 'Team efficiency vs best single robot', 'T_ref(1) / (N T(N))', False, 1),
+    ('efficiency', 'Team efficiency vs single-agent with 1 robot', 'T_ref(1) / (N T(N))', False, 1),
     ('overlap', 'Overlap at the goal coverage', 'covered again / covered [%]', True, 100),
     ('robot_coll', 'Collisions between robots', 'per episode, symlog', True, 1),
     ('imbalance', 'Workload imbalance', 'CV of area per robot', True, 1),
 ]
-TEST_METRICS = [('success', 'success', False), ('time', 'time', True), ('efficiency', 'efficiency', False),
-                ('overlap', 'overlap', True), ('robot_coll', 'robot coll.', True), ('imbalance', 'imbalance', True),
-                ('path', 'path length', True)]
+# (key, column title, unit, lower is better, scale, format) of the summary table
+TABLE_METRICS = [('success', 'Success', '%', False, 100, '{:.1f}'), ('time', 'Time to goal', 'min', True, 1, '{:.1f}'),
+                 ('efficiency', 'Team efficiency', 'T_ref(1) / (N T(N))', False, 1, '{:.3f}'),
+                 ('overlap', 'Overlap', '%', True, 100, '{:.1f}'),
+                 ('robot_coll', 'Robot collisions', 'per episode', True, 1, '{:.1f}'),
+                 ('imbalance', 'Imbalance', 'CV of area', True, 1, '{:.3f}'),
+                 ('path', 'Path length', 'm per robot', True, 1, '{:.0f}')]
 
 
 def base_name(method):
     return method.replace(' + flip', '').replace(' (last)', '').strip()
 
 
-def style(method):
+def style(method, methods):
+    """Dotted for the last checkpoint, dashed without flip_when_stuck when the same method is also shown with it"""
     if '(last)' in method:
         return ':'
-    return '-' if 'flip' in method else '--'
+    return '--' if 'flip' not in method and f'{base_name(method)} + flip' in methods else '-'
 
 
 class MapSet:
@@ -175,7 +178,7 @@ def metric_panel(ax, ms, methods, colors, row, rng, points):
         if not xs:
             continue
         ax.fill_between(xs, lo, hi, color=colors[m], alpha=0.10, linewidth=0)
-        ax.plot(xs, ys, color=colors[m], linestyle=style(m), linewidth=2, marker='o', markersize=5,
+        ax.plot(xs, ys, color=colors[m], linestyle=style(m, methods), linewidth=2, marker='o', markersize=5,
                 markeredgecolor=SURFACE, markeredgewidth=1.2, zorder=3, label=m)
     if key == 'time':
         ax.set_yscale('log')
@@ -204,83 +207,58 @@ def coverage_panel(ax, ms, methods, colors, n):
             continue
         levels, t = res
         ok = np.isfinite(t)
-        ax.plot(t[ok], levels[ok], color=colors[m], linestyle=style(m), linewidth=2, label=m)
+        ax.plot(t[ok], levels[ok], color=colors[m], linestyle=style(m, methods), linewidth=2, label=m)
     ax.set_ylim(0, 101)
     style_axes(ax, f'Coverage over time, {n} robots (median map)', 'coverage [%]', 'time [min]')
 
 
-def tests_panel(ax, ms, pairs, rng, tests):
-    """Heatmap: rows = (pair, metric), columns = team sizes, relative difference B - A, * Holm p < 0.05"""
+def summary_table(ax, data, methods, colors, table):
+    """
+    One row per method, one column per metric: mean over the map sets and team
+    sizes (each (map set, N) weighs the same) of the mean over maps, best value
+    of each column in bold
+    """
     from matplotlib.patches import Rectangle
-    rows, cells = [], []
-    for A, B in pairs:
-        for key, label, lower in TEST_METRICS:
-            group = []
-            for n in ms.agents:
-                a, b = ms.get(A, n, key), ms.get(B, n, key)
-                r = compare(a, b, rng) if a is not None and b is not None else None
-                group.append(r)
-            ps = holm([r['p'] if r is not None else np.nan for r in group])
-            row = []
-            for n, r, q in zip(ms.agents, group, ps):
-                if r is None:
-                    row.append(None)
-                    continue
-                better = (r['diff'] < 0) if lower else (r['diff'] > 0)
-                sig = bool(np.isfinite(q) and q < 0.05)
-                row.append(dict(r, p_holm=q, significant=sig, b_better=better and r['diff'] != 0))
-                tests.append(dict(map_set=ms.name, A=A, B=B, metric=key, lower_is_better=lower, num_agents=n,
-                                  maps=r['maps'], estimate_A=r['estimate_A'], estimate_B=r['estimate_B'],
-                                  diff=r['diff'], ci_low=r['ci_low'], ci_high=r['ci_high'], rel=r['rel'],
-                                  p=r['p'], p_holm=q, significant=sig))
-            rows.append((A, B, label))
-            cells.append(row)
-    if not rows:
-        ax.axis('off')
-        return
-    # one header line per pair, then its metrics
-    lines = []
-    for i, (A, B, label) in enumerate(rows):
-        if i % len(TEST_METRICS) == 0:
-            lines.append(('header', f'{B}  vs  {A}', None))
-        lines.append(('cells', label, cells[i]))
-    ax.set_xlim(0, len(ms.agents))
-    ax.set_ylim(len(lines), 0)
-    for i, (kind, label, row) in enumerate(lines):
-        if kind == 'header':
-            if i > 0:
-                ax.axhline(i + 0.15, color=AXIS, linewidth=0.8)
-            ax.text(-0.25, i + 0.62, label, ha='left', va='center', fontsize=8.5, color=INK, fontweight='bold',
-                    transform=ax.transData, clip_on=False)
-            continue
-        ax.text(-0.04, i + 0.5, label, ha='right', va='center', fontsize=8, color=INK_2)
-        for j, c in enumerate(row):
-            if c is None:
-                text, face, alpha = '-', SURFACE, 1
-            else:
-                rel = c['rel'] if np.isfinite(c['rel']) else 0
-                face = '#1baf7a' if c['b_better'] else '#e34948'
-                alpha = (0.18 + 0.55 * min(abs(rel), 1)) if c['significant'] else 0.07
-                if c['diff'] == 0:
-                    face, alpha = SURFACE, 1
-                text = (f'{100 * rel:+.0f} %' if np.isfinite(c['rel']) else f'{c["diff"]:+.2g}') + \
-                       (' *' if c['significant'] else '')
-            ax.add_patch(Rectangle((j + 0.02, i + 0.08), 0.96, 0.84, facecolor=face, alpha=alpha, linewidth=0))
-            ax.text(j + 0.5, i + 0.5, text, ha='center', va='center', fontsize=8,
-                    color=INK if c is not None and c['significant'] else INK_2)
-    ax.set_xticks(np.arange(len(ms.agents)) + 0.5)
-    ax.set_xticklabels([f'N = {n}' for n in ms.agents])
-    ax.xaxis.set_ticks_position('top')
-    ax.set_yticks([])
-    ax.tick_params(colors=INK_2, labelsize=8.5, length=0)
-    for sp in ax.spines.values():
-        sp.set_visible(False)
-    ax.set_title('Paired tests over maps: B - A relative to A, * Holm p < 0.05\n'
-                 'green: B better, red: B worse, pale: not significant',
-                 loc='left', fontsize=10.5, color=INK, fontweight='bold', pad=22)
+    values = {}
+    for m in methods:
+        for key, *_ in TABLE_METRICS:
+            cells = []
+            for ms in data:
+                for n in ms.agents:
+                    x = ms.get(m, n, key)
+                    if x is not None and np.any(np.isfinite(x)):
+                        cells.append(np.nanmean(x))
+            values[(m, key)] = float(np.mean(cells)) if cells else np.nan
+            table.append(dict(method=m, metric=key, value=values[(m, key)], cells=len(cells)))
+    ncol = len(TABLE_METRICS)
+    ax.set_xlim(-2.2, ncol)
+    ax.set_ylim(len(methods) + 1, 0)
+    for j, (key, label, unit, lower, scale, fmt) in enumerate(TABLE_METRICS):
+        ax.text(j + 0.5, 0.45, label, ha='center', va='center', fontsize=10, color=INK, fontweight='bold')
+        ax.text(j + 0.5, 0.82, unit, ha='center', va='center', fontsize=8.5, color=MUTED)
+        col = [round(scale * values[(m, key)], 6) for m in methods]
+        finite = [v for v in col if np.isfinite(v)]
+        best = (min(finite) if lower else max(finite)) if finite else np.nan
+        for i, (m, v) in enumerate(zip(methods, col)):
+            is_best = np.isfinite(v) and fmt.format(v) == fmt.format(best)
+            if is_best:
+                ax.add_patch(Rectangle((j + 0.03, i + 1.06), 0.94, 0.88, facecolor='#1baf7a', alpha=0.18,
+                                       linewidth=0))
+            ax.text(j + 0.5, i + 1.5, fmt.format(v) if np.isfinite(v) else '-', ha='center', va='center',
+                    fontsize=10, color=INK if is_best else INK_2, fontweight='bold' if is_best else 'normal')
+    for i, m in enumerate(methods):
+        ax.plot([-2.15, -1.95], [i + 1.5] * 2, color=colors[m], linestyle=style(m, methods), linewidth=2.5)
+        ax.text(-1.88, i + 1.5, m, ha='left', va='center', fontsize=10, color=INK)
+        ax.axhline(i + 1, color=GRID, linewidth=0.8)
+    ax.axhline(1, color=AXIS, linewidth=1)
+    ax.axis('off')
+    ax.set_title('Mean over all map sets and team sizes (N = ' + ', '.join(str(n) for n in data[0].agents) +
+                 '), each (map set, N) weighs the same; best of each column highlighted',
+                 loc='left', fontsize=11, color=INK, fontweight='bold', pad=8)
 
 
-def draw(data_dir, out, methods=None, pairs=None, reference=DEFAULT_REFERENCE, ref_agents=4, map_sets=None, seed=0):
+def draw(data_dir, out, methods=None, reference=DEFAULT_REFERENCE, ref_agents=4, map_sets=None, seed=0,
+         title=DEFAULT_TITLE):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -292,8 +270,6 @@ def draw(data_dir, out, methods=None, pairs=None, reference=DEFAULT_REFERENCE, r
     present = list(dict.fromkeys(r['method'] for r in episodes))
     methods = [m for m in (methods or DEFAULT_METHODS) if m in present]
     assert methods, f'none of the methods is in the data: {present}'
-    pairs = [tuple(x.strip() for x in p.split(':')) for p in (pairs or DEFAULT_PAIRS)]
-    pairs = [(a, b) for a, b in pairs if a in present and b in present]
     colors, extra = {}, iter(EXTRA_COLORS)
     bases = {}
     for m in methods:
@@ -306,41 +282,47 @@ def draw(data_dir, out, methods=None, pairs=None, reference=DEFAULT_REFERENCE, r
     data = [MapSet(s, episodes, curves, meta['map_sets'][s], reference) for s in sets]
 
     n_rows = len(ROWS) + 2
-    test_lines = max(1, len(pairs)) * (len(TEST_METRICS) + 1)
-    # heights in inches: header, metric rows, tests
-    head, row_h, line_h = 2.1, 3.0, 0.26
-    height = head + row_h * (n_rows - 1) + line_h * test_lines + 0.8
+    # heights in inches: header, metric rows, summary table
+    head, row_h, line_h = 2.1, 3.0, 0.42
+    table_h = line_h * (len(methods) + 1)
+    height = head + row_h * (n_rows - 1) + table_h + 0.9
     fig = plt.figure(figsize=(6 * len(sets) + 1.5, height), facecolor=SURFACE)
-    gs = fig.add_gridspec(n_rows, len(sets), height_ratios=[row_h] * (n_rows - 1) + [line_h * test_lines + 0.6],
+    gs = fig.add_gridspec(n_rows, len(sets), height_ratios=[row_h] * (n_rows - 1) + [table_h],
                           hspace=0.6, wspace=0.42, left=0.08, right=0.98, top=1 - (head + 0.6) / height,
                           bottom=0.15 / height)
-    points, tests = [], []
+    points, table = [], []
     for c, ms in enumerate(data):
         for r, row in enumerate(ROWS):
+            if row[0] == 'efficiency' and ms.reference:
+                row = (row[0], f'Team efficiency vs {ms.reference} with 1 robot', *row[2:])
             ax = fig.add_subplot(gs[r, c])
             metric_panel(ax, ms, methods, colors, row, rng, points)
         n_ref = ref_agents if ref_agents in ms.agents else ms.agents[-1]
         coverage_panel(fig.add_subplot(gs[len(ROWS), c]), ms, methods, colors, n_ref)
-        tests_panel(fig.add_subplot(gs[len(ROWS) + 1, c]), ms, pairs, rng, tests)
+    summary_table(fig.add_subplot(gs[len(ROWS) + 1, :]), data, methods, colors, table)
 
     # column headers: map set, maps, episodes, goal
     for c, ms in enumerate(data):
-        ax = fig.axes[c * (len(ROWS) + 2)]
+        ax = fig.axes[c * (len(ROWS) + 1)]
         bbox = ax.get_position()
         fig.text(bbox.x0, bbox.y1 + 0.75 / height, ms.name, fontsize=15, color=INK, fontweight='bold')
         fig.text(bbox.x0, bbox.y1 + 0.5 / height, f'{len(ms.maps)} maps x {ms.info.get("episodes", 1)} episodes, '
                                            f'goal {ms.p} % coverage, limit {ms.limit / 60:.0f} min',
                  fontsize=9.5, color=INK_2)
     top = 1 - 0.3 / height
-    fig.text(0.02, top, 'Single agent xN vs MAPPO vs IPPO: multi-robot coverage', fontsize=20, color=INK,
+    fig.text(0.02, top, title, fontsize=20, color=INK,
              fontweight='bold', va='top')
     ref = data[0].reference if data else None
+    if any('flip' in m for m in methods):
+        flips = 'Solid: with flip_when_stuck, dashed: without, dotted: last checkpoint. '
+    else:
+        flips = 'Without flip_when_stuck. '
     fig.text(0.02, top - 0.45 / height,
              'Same episodes for every policy (maps, start poses, seed), deterministic actions. Lines: mean over '
-             'maps, band: 95 % bootstrap CI over maps.\nSolid: with flip_when_stuck, dashed: without, dotted: '
-             f'last checkpoint. Team efficiency relative to {ref or "each method"} with 1 robot on the same map.',
+             'maps, band: 95 % bootstrap CI over maps.\n' + flips +
+             f'Team efficiency relative to {ref or "each method"} with 1 robot on the same map.',
              fontsize=10, color=INK_2, va='top')
-    handles = [plt.Line2D([], [], color=colors[m], linestyle=style(m), linewidth=2, marker='o', markersize=5,
+    handles = [plt.Line2D([], [], color=colors[m], linestyle=style(m, methods), linewidth=2, marker='o', markersize=5,
                           markeredgecolor=SURFACE) for m in methods]
     fig.legend(handles, methods, loc='upper left', bbox_to_anchor=(0.015, top - 0.95 / height), ncol=min(len(methods), 6),
                frameon=False, fontsize=10.5, labelcolor=INK, handlelength=2.6, columnspacing=2.2)
@@ -349,7 +331,7 @@ def draw(data_dir, out, methods=None, pairs=None, reference=DEFAULT_REFERENCE, r
     plt.close(fig)
     data_out = os.path.splitext(out)[0] + '_data'
     os.makedirs(data_out, exist_ok=True)
-    for name, rows in (('points', points), ('tests', tests)):
+    for name, rows in (('points', points), ('table', table)):
         if rows:
             with open(os.path.join(data_out, f'{name}.csv'), 'w', newline='') as f:
                 w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
@@ -363,16 +345,16 @@ def main():
     parser.add_argument('--data', default='results/compare_sa', type=str, help='directory written by compare_sa.sh')
     parser.add_argument('--out', default=None, type=str, help='PDF file (default: <data>/dashboard_compare.pdf)')
     parser.add_argument('--methods', nargs='+', default=None, help='methods to show, in this order')
-    parser.add_argument('--pair', action='append', default=None, help="'METHOD A:METHOD B' of the tests, B - A")
     parser.add_argument('--reference', default=DEFAULT_REFERENCE, type=str,
                         help='method whose time with 1 robot is the reference of the team efficiency')
     parser.add_argument('--ref_agents', default=4, type=int, help='number of robots of the coverage curves')
     parser.add_argument('--map_sets', nargs='+', default=None, help='map sets (columns), default: all')
     parser.add_argument('--seed', default=0, type=int, help='seed of the bootstrap')
+    parser.add_argument('--title', default=DEFAULT_TITLE, type=str)
     args = parser.parse_args()
     out = args.out or os.path.join(args.data, 'dashboard_compare.pdf')
-    data_out = draw(args.data, out, args.methods, args.pair, args.reference, args.ref_agents, args.map_sets,
-                    args.seed)
+    data_out = draw(args.data, out, args.methods, args.reference, args.ref_agents, args.map_sets,
+                    args.seed, args.title)
     print('one page comparison:', out)
     print('data shown in the dashboard:', data_out)
 

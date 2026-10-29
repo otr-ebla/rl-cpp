@@ -1,0 +1,21 @@
+2026-10-29 12:42:15 test_small started
+map set test_small: 100 maps x 3 episodes, robots [1, 2, 4, 8], 3 checkpoints, JAX device cuda:0
+IPPO scale 2           seed 0  N=1  success 0.89  coverage 0.971  time_99   585.1 s  overlap_99  54.4 %  robot coll.   0.0  (27 s, total 0 min)
+IPPO scale 2           seed 0  N=2  success 0.99  coverage 0.990  time_99   334.0 s  overlap_99  59.7 %  robot coll.  26.3  (25 s, total 1 min)
+IPPO scale 2           seed 0  N=4  success 1.00  coverage 0.991  time_99   180.3 s  overlap_99  64.7 %  robot coll.  93.8  (10 s, total 1 min)
+IPPO scale 2           seed 0  N=8  success 1.00  coverage 0.991  time_99   116.1 s  overlap_99  80.0 %  robot coll. 289.6  (10 s, total 1 min)
+IPPO scale 3           seed 0  N=1  success 1.00  coverage 0.991  time_99   504.7 s  overlap_99  32.7 %  robot coll.   0.0  (9 s, total 1 min)
+IPPO scale 3           seed 0  N=2  success 1.00  coverage 0.991  time_99   274.3 s  overlap_99  42.5 %  robot coll.   0.1  (8 s, total 2 min)
+IPPO scale 3           seed 0  N=4  success 1.00  coverage 0.991  time_99   154.3 s  overlap_99  55.1 %  robot coll.   1.6  (8 s, total 2 min)
+IPPO scale 3           seed 0  N=8  success 1.00  coverage 0.991  time_99    89.5 s  overlap_99  70.8 %  robot coll.   3.7  (8 s, total 2 min)
+IPPO scale 4           seed 0  N=1  success 1.00  coverage 0.991  time_99   490.2 s  overlap_99  32.6 %  robot coll.   0.0  (5 s, total 2 min)
+IPPO scale 4           seed 0  N=2  success 1.00  coverage 0.991  time_99   264.7 s  overlap_99  41.0 %  robot coll.   0.0  (4 s, total 2 min)
+IPPO scale 4           seed 0  N=4  success 1.00  coverage 0.991  time_99   153.0 s  overlap_99  56.6 %  robot coll.   0.1  (4 s, total 2 min)
+IPPO scale 4           seed 0  N=8  success 1.00  coverage 0.991  time_99    88.7 s  overlap_99  73.1 %  robot coll.   0.5  (4 s, total 2 min)
+2026-10-29 12:44:23 test_small done
+2026-10-29 12:44:23 test_large started
+map set test_large: 100 maps x 3 episodes, robots [1, 2, 4, 8], 3 checkpoints, JAX device cuda:0
+IPPO scale 2           seed 0  N=1  success 0.69  coverage 0.898  time_95  7439.9 s  overlap_95  50.2 %  robot coll.   0.0  (247 s, total 4 min)
+IPPO scale 2           seed 0  N=2  success 0.96  coverage 0.949  time_95  4058.2 s  overlap_95  59.0 %  robot coll.  36.8  (261 s, total 8 min)
+IPPO scale 2           seed 0  N=4  success 1.00  coverage 0.950  time_95  2083.1 s  overlap_95  59.3 %  robot coll. 516.9  (108 s, total 10 min)
+IPPO scale 2           seed 0  N=8  success 1.00  coverage 0.950  time_95  1148.9 s  overlap_95  62.0 %  robot coll. 1612.5  (217 s, total 14 min)

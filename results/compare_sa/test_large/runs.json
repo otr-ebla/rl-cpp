@@ -47,6 +47,29 @@
         "flip_when_stuck": true
       },
       "comm_range": 0
+    },
+    "IPPO": {
+      "checkpoints": [
+        "experiments/ippo_sb3_v2/checkpoint_best"
+      ],
+      "overrides": {},
+      "comm_range": 0
+    },
+    "IPPO + flip": {
+      "checkpoints": [
+        "experiments/ippo_sb3_v2/checkpoint_best"
+      ],
+      "overrides": {
+        "flip_when_stuck": true
+      },
+      "comm_range": 0
+    },
+    "IPPO (last)": {
+      "checkpoints": [
+        "experiments/ippo_sb3_v2/checkpoint"
+      ],
+      "overrides": {},
+      "comm_range": 0
     }
   },
   "map_sets": {
