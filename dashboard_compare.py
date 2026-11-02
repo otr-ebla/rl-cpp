@@ -9,8 +9,11 @@ actions).
 
 One column per map set, one row per metric, against the number of robots:
   success rate        reached the goal coverage of the map set
+  collision rate      ended by a collision (collision_ends_episode)
+  timeout rate        neither: success + collision + timeout = 1
   time to the goal    episodes that did not reach it count with the step
-                      limit (a lower bound of their time)
+                      limit (a lower bound of their time), or with
+                      --time_failed exclude only the successful episodes
   team efficiency     T_ref(1) / (N T(N)) on the same map, T_ref(1): time of
                       the reference single robot (--reference, by default the
                       single-agent policy replicated on N robots), 1 = ideal
@@ -44,14 +47,17 @@ from dashboard_marl import AXIS, FONT, GRID, INK, INK_2, MUTED, SURFACE, load
 
 # Categorical slots in fixed order (dataviz reference palette), by base method
 BASE_COLORS = {'MAPPO': '#2a78d6', 'IPPO': '#eb6834', 'Single-agent fine-tuned xN': '#1baf7a',
-               'Single-agent xN': '#eda100'}
+               'Single-agent xN': '#eda100', 'Single-robot independent xN': '#1baf7a',
+               'MAPPO retrained': '#6250d6', 'IPPO retrained': '#e34948'}
 EXTRA_COLORS = ['#e87ba4', '#008300', '#6250d6', '#e34948']
 DEFAULT_METHODS = ['Single-agent xN', 'MAPPO', 'IPPO']
 DEFAULT_REFERENCE = 'Single-agent xN'
 DEFAULT_TITLE = 'Single agent xN vs MAPPO vs IPPO: multi-robot coverage'
 # (key, row title, axis label, lower is better, scale of the shown values)
 ROWS = [
-    ('success', 'Success rate', 'episodes [%]', False, 100),
+    ('success', 'Success rate', 'fraction of episodes', False, 1),
+    ('collision', 'Collision rate', 'fraction of episodes', True, 1),
+    ('timeout', 'Timeout rate', 'fraction of episodes', True, 1),
     ('time', 'Time to the goal coverage', 'time [min], log', True, 1),
     ('efficiency', 'Team efficiency vs single-agent with 1 robot', 'T_ref(1) / (N T(N))', False, 1),
     ('overlap', 'Overlap at the goal coverage', 'covered again / covered [%]', True, 100),
@@ -59,7 +65,8 @@ ROWS = [
     ('imbalance', 'Workload imbalance', 'CV of area per robot', True, 1),
 ]
 # (key, column title, unit, lower is better, scale, format) of the summary table
-TABLE_METRICS = [('success', 'Success', '%', False, 100, '{:.1f}'), ('time', 'Time to goal', 'min', True, 1, '{:.1f}'),
+TABLE_METRICS = [('success', 'Success', 'rate', False, 1, '{:.3f}'), ('collision', 'Collision', 'rate', True, 1, '{:.3f}'),
+                 ('timeout', 'Timeout', 'rate', True, 1, '{:.3f}'), ('time', 'Time to goal', 'min', True, 1, '{:.1f}'),
                  ('efficiency', 'Team efficiency', 'T_ref(1) / (N T(N))', False, 1, '{:.3f}'),
                  ('overlap', 'Overlap', '%', True, 100, '{:.1f}'),
                  ('robot_coll', 'Robot collisions', 'per episode', True, 1, '{:.1f}'),
@@ -81,7 +88,7 @@ def style(method, methods):
 class MapSet:
     """Per map values (mean over episodes and seeds) of one map set"""
 
-    def __init__(self, name, episodes, curves, info, reference):
+    def __init__(self, name, episodes, curves, info, reference, time_failed='limit'):
         self.name = name
         self.info = info
         self.p = int(round(100 * info.get('goal_coverage', 0.99)))
@@ -93,8 +100,11 @@ class MapSet:
         acc = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
         for r in rows:
             t = r[f'time_{self.p}']
-            reached = np.isfinite(t)
-            v = dict(success=float(reached), time=(t if reached else self.limit) / 60,
+            reached = bool(r['success']) if 'success' in r else np.isfinite(t)
+            collision = float(r.get('collision', 0))
+            failed_time = self.limit if time_failed == 'limit' else np.nan
+            v = dict(success=float(reached), collision=collision, timeout=1 - float(reached) - collision,
+                     time=(t if reached else failed_time) / 60,
                      overlap=r[f'overlap_{self.p}'] if reached else np.nan,
                      robot_coll=r['robot_collisions'], imbalance=r['imbalance'], path=r['path_length'])
             for k, x in v.items():
@@ -185,8 +195,8 @@ def metric_panel(ax, ms, methods, colors, row, rng, points):
     elif key == 'robot_coll':
         ax.set_yscale('symlog', linthresh=1)
         ax.set_ylim(bottom=0)
-    elif key == 'success':
-        ax.set_ylim(top=102)
+    elif key in ('success', 'collision', 'timeout'):
+        ax.set_ylim(-0.02, 1.02)
     elif key == 'efficiency':
         ax.axhline(1, color=MUTED, linewidth=1, zorder=2)
         ax.annotate('ideal', (ms.agents[-1], 1), textcoords='offset points', xytext=(-2, 3), ha='right',
@@ -196,7 +206,7 @@ def metric_panel(ax, ms, methods, colors, row, rng, points):
     ax.set_xticks(ms.agents)
     ax.set_xticklabels([str(n) for n in ms.agents])
     ax.minorticks_off()
-    target = f' ({ms.p} %)' if key in ('success', 'time', 'overlap') else ''
+    target = f' ({ms.p} %)' if key in ('success', 'timeout', 'time', 'overlap') else ''
     style_axes(ax, title + target, ylabel, 'robots')
 
 
@@ -258,7 +268,7 @@ def summary_table(ax, data, methods, colors, table):
 
 
 def draw(data_dir, out, methods=None, reference=DEFAULT_REFERENCE, ref_agents=4, map_sets=None, seed=0,
-         title=DEFAULT_TITLE):
+         title=DEFAULT_TITLE, time_failed='limit', note=None):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -279,7 +289,7 @@ def draw(data_dir, out, methods=None, reference=DEFAULT_REFERENCE, ref_agents=4,
         colors[m] = bases[b]
     sets = [s for s in (map_sets or list(meta['map_sets'])) if any(r['map_set'] == s for r in episodes)]
     rng = np.random.default_rng(seed)
-    data = [MapSet(s, episodes, curves, meta['map_sets'][s], reference) for s in sets]
+    data = [MapSet(s, episodes, curves, meta['map_sets'][s], reference, time_failed) for s in sets]
 
     n_rows = len(ROWS) + 2
     # heights in inches: header, metric rows, summary table
@@ -320,7 +330,8 @@ def draw(data_dir, out, methods=None, reference=DEFAULT_REFERENCE, ref_agents=4,
     fig.text(0.02, top - 0.45 / height,
              'Same episodes for every policy (maps, start poses, seed), deterministic actions. Lines: mean over '
              'maps, band: 95 % bootstrap CI over maps.\n' + flips +
-             f'Team efficiency relative to {ref or "each method"} with 1 robot on the same map.',
+             f'Team efficiency relative to {ref or "each method"} with 1 robot on the same map. ' +
+             ('Time to the goal: only successful episodes. ' if time_failed == 'exclude' else '') + (note or ''),
              fontsize=10, color=INK_2, va='top')
     handles = [plt.Line2D([], [], color=colors[m], linestyle=style(m, methods), linewidth=2, marker='o', markersize=5,
                           markeredgecolor=SURFACE) for m in methods]
@@ -351,10 +362,13 @@ def main():
     parser.add_argument('--map_sets', nargs='+', default=None, help='map sets (columns), default: all')
     parser.add_argument('--seed', default=0, type=int, help='seed of the bootstrap')
     parser.add_argument('--title', default=DEFAULT_TITLE, type=str)
+    parser.add_argument('--time_failed', default='limit', choices=['limit', 'exclude'],
+                        help='time to the goal of the episodes that did not reach it: the step limit, or excluded')
+    parser.add_argument('--note', default=None, type=str, help='appended to the subtitle')
     args = parser.parse_args()
     out = args.out or os.path.join(args.data, 'dashboard_compare.pdf')
     data_out = draw(args.data, out, args.methods, args.reference, args.ref_agents, args.map_sets,
-                    args.seed, args.title)
+                    args.seed, args.title, args.time_failed, args.note)
     print('one page comparison:', out)
     print('data shown in the dashboard:', data_out)
 

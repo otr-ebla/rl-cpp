@@ -40,6 +40,12 @@ class EnvConfig:
         invariant network, so that the same parameters work for any number of
         robots. The global maps of the critic then have no robot channel, the
         critic gets the poses of all robots as a set instead
+    :param robot_lidar_obstacles: Whether each robot also sees the pixels at
+        which its own lidar hits another robot in its known obstacle channel
+        (and frontier), as rlm.mower_env.MowerEnv adds all lidar detections to
+        the obstacle map. Only in the observation of the current step, the
+        detections of robots are not kept. Without it the other robots are
+        only seen by the lidar (used to evaluate the single-agent policy)
     :param comm_range: Communication range between robots [m]. 0: unlimited,
         all robots share one global map. > 0: each robot keeps its own belief
         of the coverage and known obstacle maps, built from its own coverage
@@ -47,6 +53,14 @@ class EnvConfig:
         within comm_range, or through other robots) are merged with OR (max of
         the overlap counts) every step. The robots in the observation are
         then only the connected ones
+    :param no_communication: Whether the robots do not communicate at all
+        (independent single robots): each robot keeps its own belief (as with
+        comm_range > 0) built only from its own coverage and lidar, it gets
+        no poses of the other robots, and its area, overlap and total
+        variation rewards are computed on its own coverage instead of the
+        team's. The other robots are still obstacles (lidar, collisions, and
+        robot_lidar_obstacles). The team coverage only ends the episode and
+        gives the metrics
     :param obstacle_dilation: Dilation kernel size around obstacles (metrics, frontier)
     :param global_size: Size of the global maps given to the centralized critic
     :param max_episode_steps: Maximum episode length
@@ -55,6 +69,9 @@ class EnvConfig:
         max_stuck_steps times in a row, as in rlm.mower_env.MowerEnv (used to
         evaluate policies that cannot get out of deadlocks by themselves)
     :param max_stuck_steps: Collisions in a row before flipping the robot
+    :param collision_ends_episode: Whether any collision (wall, obstacle or
+        other robot) of any robot ends the episode at once, as a failure (not
+        a success even if the goal coverage is reached in the same step)
     :param goal_coverage_reward: Reward for reaching the target coverage
     :param wall_collision_reward: Reward for wall collision
     :param obstacle_collision_reward: Reward for obstacle collision
@@ -98,13 +115,16 @@ class EnvConfig:
     frontier_observation: bool = True
     robot_observation: bool = False
     neighbor_observation: bool = True
+    robot_lidar_obstacles: bool = False
     comm_range: float = 0
+    no_communication: bool = False
     obstacle_dilation: int = 9
     global_size: int = 64
     max_episode_steps: int = 2000
     max_non_new_steps: int = 1000
     flip_when_stuck: bool = False
     max_stuck_steps: int = 5
+    collision_ends_episode: bool = False
     goal_coverage_reward: float = 0
     wall_collision_reward: float = -10
     obstacle_collision_reward: float = -10
@@ -149,7 +169,7 @@ class EnvConfig:
 
     @property
     def limited_comm(self):
-        return self.comm_range > 0
+        return self.comm_range > 0 or self.no_communication
 
     @property
     def window(self):

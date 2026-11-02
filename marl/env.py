@@ -388,6 +388,8 @@ class MultiMowerEnv:
         N = self.cfg.num_agents
         if not self.cfg.limited_comm:
             return jnp.ones((N, N), dtype=bool)
+        if self.cfg.no_communication:
+            return jnp.eye(N, dtype=bool)
         d = jnp.linalg.norm(pos[:, None] - pos[None, :], axis=-1)
         conn = (d <= self.cfg.comm_range) | jnp.eye(N, dtype=bool)
         # transitive closure: after k squarings, paths of up to 2 ** k hops
@@ -414,7 +416,9 @@ class MultiMowerEnv:
         capsule swept in the previous step.
 
         Newly covered pixels that are covered by k robots in the same step
-        are attributed 1/k to each of them.
+        are attributed 1/k to each of them. With no_communication the
+        rewarded area (reward_share), overlap and total variation are
+        computed on each robot's own coverage (its belief) instead.
         """
         cfg = self.cfg
         S = cfg.canvas_size
@@ -455,6 +459,13 @@ class MultiMowerEnv:
         new_share = jnp.sum(jnp.where(newly_d, 1 / count, 0), axis=(1, 2))  # N
         team_new = jnp.sum(new_share)
         team_diff = jnp.sum(diff_d)
+        reward_share = new_share
+        if cfg.no_communication:
+            # the robot only knows (and is rewarded for) its own coverage
+            n = jnp.arange(cfg.num_agents)[:, None, None]
+            overlap_old = state.belief_overlap[n, II, JJ]
+            covered_old = overlap_old > 0
+            reward_share = jnp.sum(diff & ~covered_old & ~dilated, axis=(1, 2)).astype(jnp.float32)
 
         # Incremental total variation of each robot's own contribution
         cov_old_f = covered_old.astype(jnp.float32)
@@ -466,7 +477,7 @@ class MultiMowerEnv:
         # Overlap with earlier coverage
         overlap_sum = jnp.sum(diff * overlap_old, axis=(1, 2)).astype(jnp.float32)
 
-        return dict(overlap=overlap, new_share=new_share, team_new=team_new,
+        return dict(overlap=overlap, new_share=new_share, reward_share=reward_share, team_new=team_new,
                     team_diff=team_diff, any_new=jnp.any(newly), tv_diff=tv_diff,
                     overlap_sum=overlap_sum, diff=diff, ii=II, jj=JJ)
 
@@ -526,7 +537,7 @@ class MultiMowerEnv:
 
         # Area reward: individual and team part
         max_new = cfg.max_newly_visited
-        indiv = cov['new_share'] / max_new
+        indiv = cov['reward_share'] / max_new
         team = cov['team_new'] / (N * max_new)
         w = cfg.team_reward_weight
         reward_area = cfg.newly_visited_reward_scale * ((1 - w) * jnp.where(collided, 0, indiv) + w * team)
@@ -552,14 +563,15 @@ class MultiMowerEnv:
         if cfg.constant_reward_always:
             reward_const = jnp.full((N,), cfg.constant_reward)
         else:
-            reward_const = jnp.where(cov['new_share'] > 0, 0, cfg.constant_reward)
+            reward_const = jnp.where(cov['reward_share'] > 0, 0, cfg.constant_reward)
 
         # Termination and truncation
         t = state.t + 1
         non_new_steps = jnp.where(cov['any_new'], 0, state.non_new_steps + 1)
-        success = coverage >= state.goal_coverage
-        truncated = ~success & ((t >= cfg.max_episode_steps) | (non_new_steps >= cfg.max_non_new_steps))
-        done = success | truncated
+        crashed = jnp.any(collided) & cfg.collision_ends_episode
+        success = (coverage >= state.goal_coverage) & ~crashed
+        truncated = ~success & ~crashed & ((t >= cfg.max_episode_steps) | (non_new_steps >= cfg.max_non_new_steps))
+        done = success | truncated | crashed
         reward_goal = jnp.where(success, cfg.goal_coverage_reward, 0)
         reward_trunc = jnp.where(truncated, -cfg.truncation_reward_scale * (1 - coverage), 0)
 
@@ -587,6 +599,7 @@ class MultiMowerEnv:
             state = self._update_beliefs(state, cov, hit_pix, write)
         info = dict(
             success=success,
+            crashed=crashed,
             coverage=coverage,
             overlap=overlap_px / jnp.maximum(coverage_px, 1),
             length=t,
@@ -625,6 +638,30 @@ class MultiMowerEnv:
         dh = other_heading[None, :] - heading[:, None]
         return jnp.concatenate([bearing, closeness, jnp.cos(dh)[..., None], jnp.sin(dh)[..., None]], axis=-1)
 
+    def _add_robot_detections(self, known, state: EnvState):
+        """
+        Adds to the known obstacles (N, S, S) of each robot the pixels at which
+        its own lidar rays (state.lidar_dist) hit another robot, see
+        robot_lidar_obstacles. The returned maps are only for the observation.
+        """
+        cfg = self.cfg
+        N = cfg.num_agents
+        S = known.shape[-1]
+        angles = jnp.linspace(-cfg.lidar_fov / 2, cfg.lidar_fov / 2, cfg.lidar_rays) * jnp.pi / 180
+        ang = state.heading[:, None] + angles[None, :]                      # N x R
+        dirs = jnp.stack([jnp.cos(ang), jnp.sin(ang)], axis=-1)             # N x R x 2
+        pos_p = state.pos * cfg.pixels_per_meter
+        pts = pos_p[:, None, :] + state.lidar_dist[..., None] * dirs         # N x R x 2
+        # the detection is on the border of another robot (the rays end at the first hit)
+        d = jnp.linalg.norm(pts[:, :, None, :] - pos_p[None, None, :, :], axis=-1)  # N x R x N
+        other = ~jnp.eye(N, dtype=bool)[:, None, :]
+        hit = jnp.any(other & (d <= cfg.radius_p + 1), axis=-1) & (state.lidar_dist < cfg.lidar_samples)
+        pix = jnp.floor(pts).astype(jnp.int32)
+        n = jnp.broadcast_to(jnp.arange(N)[:, None], hit.shape)
+        i = jnp.where(hit, pix[..., 0], S)
+        j = jnp.where(hit, pix[..., 1], S)
+        return known.at[n.reshape(-1), i.reshape(-1), j.reshape(-1)].set(True, mode='drop')
+
     def _observation(self, key, state: EnvState):
         cfg = self.cfg
         N = cfg.num_agents
@@ -647,6 +684,13 @@ class MultiMowerEnv:
             obs_overlap, obs_known = state.belief_overlap, state.belief_known
         else:
             obs_overlap, obs_known = state.overlap, state.known
+        # per robot maps: own belief, or own lidar detections of the other robots
+        per_robot = cfg.limited_comm or cfg.robot_lidar_obstacles
+        if cfg.robot_lidar_obstacles:
+            if not cfg.limited_comm:
+                obs_overlap = jnp.broadcast_to(obs_overlap, (N, S, S))
+                obs_known = jnp.broadcast_to(obs_known, (N, S, S))
+            obs_known = self._add_robot_detections(obs_known, state)
         channels = list(self._coverage_known(obs_overlap, obs_known))
         pads = [0.0, 0.0 if cfg.all_unknown else 1.0]
         if cfg.frontier_observation:
@@ -675,7 +719,7 @@ class MultiMowerEnv:
         pos_p = state.pos * ppm
         # robots only know the positions of the robots they can communicate with
         other = ~jnp.eye(N, dtype=bool) & state.connected
-        if cfg.limited_comm:
+        if per_robot:
             # per robot maps: sample the map of robot n at its own grid
             sample = jax.vmap(bilinear, in_axes=(0, 0, 0, None))
         else:

@@ -569,6 +569,10 @@ def main():
     parser.add_argument('--scale_factor', default=None, type=int,
                         help='scale factor between the multi-scale maps (default: as in training), '
                              'same network, the maps only cover another area')
+    parser.add_argument('--robot_lidar_obstacles', default=None, action=BooleanOptionalAction,
+                        help='show the lidar detections of the other robots in the obstacle map (default: as in training)')
+    parser.add_argument('--flip_when_stuck', default=None, action=BooleanOptionalAction,
+                        help='turn a robot by 180 degrees when stuck (default: as in training)')
     args = parser.parse_args()
 
     params, env_cfg, train_cfg = load_checkpoint(args.load)
@@ -584,6 +588,10 @@ def main():
         overrides['num_agents'] = args.num_agents
     if args.comm_range is not None:
         overrides['comm_range'] = args.comm_range
+    if args.robot_lidar_obstacles is not None:
+        overrides['robot_lidar_obstacles'] = args.robot_lidar_obstacles
+    if args.flip_when_stuck is not None:
+        overrides['flip_when_stuck'] = args.flip_when_stuck
     if args.scale_factor is not None:
         overrides['scale_factor'] = args.scale_factor
         # the global maps are only seen by the critic: keep the canvas small

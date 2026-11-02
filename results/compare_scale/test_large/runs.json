@@ -8,6 +8,25 @@
         "scale_factor": 2
       },
       "comm_range": 0
+    },
+    "IPPO scale 3": {
+      "checkpoints": [
+        "experiments/ippo_sb3_v2/checkpoint_best"
+      ],
+      "overrides": {
+        "scale_factor": 3,
+        "global_size": 27
+      },
+      "comm_range": 0
+    },
+    "IPPO scale 4": {
+      "checkpoints": [
+        "experiments/ippo_sb3_v2/checkpoint_best"
+      ],
+      "overrides": {
+        "scale_factor": 4
+      },
+      "comm_range": 0
     }
   },
   "map_sets": {

@@ -1,0 +1,55 @@
+method,metric,value,cells
+Single-agent xN,success,0.08945906432748539,12
+Single-agent xN,collision,0.9102631578947366,12
+Single-agent xN,timeout,0.0002777777777777778,12
+Single-agent xN,time,14.99392144599532,9
+Single-agent xN,efficiency,0.9238761954755763,8
+Single-agent xN,overlap,0.77364236803084,9
+Single-agent xN,robot_coll,0.8525438596491227,12
+Single-agent xN,imbalance,0.10074019241846512,12
+Single-agent xN,path,85.2704977412492,12
+Single-robot independent xN,success,0.7504239766081873,12
+Single-robot independent xN,collision,0.23403508771929826,12
+Single-robot independent xN,timeout,0.01554093567251462,12
+Single-robot independent xN,time,44.558211586971076,12
+Single-robot independent xN,efficiency,0.7613947380173073,12
+Single-robot independent xN,overlap,1.500159268740583,12
+Single-robot independent xN,robot_coll,0.2589327485380117,12
+Single-robot independent xN,imbalance,0.20656540701280404,12
+Single-robot independent xN,path,487.0036075729763,12
+IPPO,success,0.8657309941520467,12
+IPPO,collision,0.1298830409356725,12
+IPPO,timeout,0.0043859649122807015,12
+IPPO,time,32.51159831257933,12
+IPPO,efficiency,1.103677778986626,12
+IPPO,overlap,0.37987121548589514,12
+IPPO,robot_coll,0.005,12
+IPPO,imbalance,0.08203183121215293,12
+IPPO,path,343.22730984288575,12
+MAPPO,success,0.6314181286549708,12
+MAPPO,collision,0.36235380116959054,12
+MAPPO,timeout,0.006228070175438596,12
+MAPPO,time,30.242802911083626,12
+MAPPO,efficiency,1.0268176422664481,12
+MAPPO,overlap,0.4377031908634776,12
+MAPPO,robot_coll,0.002953216374269006,12
+MAPPO,imbalance,0.0817552765719627,12
+MAPPO,path,269.32730353977666,12
+IPPO retrained,success,0.7729824561403508,12
+IPPO retrained,collision,0.22065789473684208,12
+IPPO retrained,timeout,0.006359649122807017,12
+IPPO retrained,time,32.93432473661683,12
+IPPO retrained,efficiency,1.064448745750273,12
+IPPO retrained,overlap,0.3758524361228928,12
+IPPO retrained,robot_coll,0.07880116959064327,12
+IPPO retrained,imbalance,0.09150224220186622,12
+IPPO retrained,path,313.6803444243684,12
+MAPPO retrained,success,0.7451900584795322,12
+MAPPO retrained,collision,0.2493859649122807,12
+MAPPO retrained,timeout,0.005423976608187134,12
+MAPPO retrained,time,32.78512451211798,12
+MAPPO retrained,efficiency,1.0405938581781673,12
+MAPPO retrained,overlap,0.3856505886614618,12
+MAPPO retrained,robot_coll,0.13868421052631577,12
+MAPPO retrained,imbalance,0.08769226320359678,12
+MAPPO retrained,path,305.812332801166,12

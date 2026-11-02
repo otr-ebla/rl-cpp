@@ -459,3 +459,50 @@ def test_config_from(tmp_path):
         train_marl.main()
     assert seen['env'] == env_cfg
     assert seen['train'] == TrainConfig(**{**train_cfg.to_dict(), 'algo': 'ippo'})
+
+
+@pytest.mark.parametrize('comm_range', [0, 5])
+def test_robot_lidar_obstacles(comm_range):
+    """With robot_lidar_obstacles the lidar detections of the other robots are in the obstacle channel, only in the observation"""
+    obs_channel = 1  # scale 0: coverage, obstacles, frontier
+    pos, heading = [[0.95, 1.2], [1.45, 1.2]], [0.0, math.pi]
+    maps = {}
+    for flag in [False, True]:
+        env, params = make_env([empty_map()], num_agents=2, comm_range=comm_range, robot_lidar_obstacles=flag)
+        state = set_poses(env, params, pos, heading)
+        state = state.replace(known=jnp.zeros_like(state.known), belief_known=jnp.zeros_like(state.belief_known))
+        obs = env._observation(jax.random.PRNGKey(0), state)
+        maps[flag] = np.array(obs['maps'][..., obs_channel])
+    assert not np.any(maps[False])
+    H = maps[True].shape[1]
+    for n in range(2):
+        # the other robot is ahead (up), the robot itself is not an obstacle
+        rows, _ = np.nonzero(maps[True][n])
+        assert len(rows) > 0 and np.all(rows < H // 2 - 4)
+
+
+@pytest.mark.parametrize('flag', [False, True])
+def test_collision_ends_episode(flag):
+    """With collision_ends_episode the first collision ends the episode, as a failure"""
+    env, params = make_env([empty_map()], num_agents=2, collision_ends_episode=flag)
+    # robot 0 drives into the wall at x = 0
+    state = set_poses(env, params, [[0.2, 1.2], [1.6, 1.2]], [math.pi, math.pi / 2])
+    state, _, done, info = env._step_state(jax.random.PRNGKey(0), state, jnp.zeros((2, 1)))
+    assert int(state.collisions[0]) == 1
+    assert bool(done) == flag and bool(info['crashed']) == flag and not bool(info['success'])
+
+
+@pytest.mark.parametrize('flag', [False, True])
+def test_no_communication(flag):
+    """Without communication a robot is rewarded on its own coverage only and gets no poses of the others"""
+    env, params = make_env([empty_map()], num_agents=2, no_communication=flag)
+    state = set_poses(env, params, [[0.8, 1.2], [1.6, 1.2]], [0.0, math.pi / 2])
+    # the whole map was already covered by the team, but not in the robots' own beliefs
+    state = state.replace(overlap=jnp.ones_like(state.overlap))
+    if flag:
+        assert not np.any(np.array(state.connected) & ~np.eye(2, dtype=bool))
+        obs = env._observation(jax.random.PRNGKey(0), state)
+        assert not np.any(np.array(obs['others_mask']))
+    cov = env._coverage_update(state, state.pos + jnp.array([[0.1, 0.0], [0.0, 0.1]]))
+    assert np.all(np.array(cov['new_share']) == 0)
+    assert np.all(np.array(cov['reward_share']) > 0) == flag

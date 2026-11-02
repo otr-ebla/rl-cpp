@@ -1,0 +1,82 @@
+{
+  "methods": {
+    "Single-agent xN": {
+      "checkpoints": [
+        "experiments/sb3_init/checkpoint"
+      ],
+      "overrides": {
+        "robot_lidar_obstacles": true,
+        "collision_ends_episode": true,
+        "flip_when_stuck": false
+      },
+      "comm_range": 0
+    },
+    "MAPPO": {
+      "checkpoints": [
+        "experiments/mappo_sb3_v2/checkpoint_best"
+      ],
+      "overrides": {
+        "robot_lidar_obstacles": true,
+        "collision_ends_episode": true,
+        "flip_when_stuck": false
+      },
+      "comm_range": 0
+    },
+    "IPPO": {
+      "checkpoints": [
+        "experiments/ippo_sb3_v2/checkpoint_best"
+      ],
+      "overrides": {
+        "robot_lidar_obstacles": true,
+        "collision_ends_episode": true,
+        "flip_when_stuck": false
+      },
+      "comm_range": 0
+    },
+    "Single-robot independent xN": {
+      "checkpoints": [
+        "experiments/sa_indep/checkpoint_best"
+      ],
+      "overrides": {
+        "robot_lidar_obstacles": true,
+        "collision_ends_episode": true,
+        "flip_when_stuck": false
+      },
+      "comm_range": 0
+    },
+    "MAPPO retrained": {
+      "checkpoints": [
+        "experiments/mappo_obst/checkpoint_best"
+      ],
+      "overrides": {
+        "robot_lidar_obstacles": true,
+        "collision_ends_episode": true,
+        "flip_when_stuck": false
+      },
+      "comm_range": 0
+    },
+    "IPPO retrained": {
+      "checkpoints": [
+        "experiments/ippo_obst/checkpoint_best"
+      ],
+      "overrides": {
+        "robot_lidar_obstacles": true,
+        "collision_ends_episode": true,
+        "flip_when_stuck": false
+      },
+      "comm_range": 0
+    }
+  },
+  "map_sets": {
+    "test_small": {
+      "maps": 100,
+      "episodes": 3,
+      "goal_coverage": 0.99,
+      "max_steps": 8000,
+      "seed": 0,
+      "globs": [
+        "maps/test_small_*.png"
+      ]
+    }
+  }
+}

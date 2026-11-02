@@ -11,8 +11,11 @@ each (map set, comparison, metric) over the team sizes.
 
 Metrics:
   success        reached the goal coverage of the map set
+  collision      ended by a collision (collision_ends_episode)
+  timeout        neither success nor collision
   time_goal      time to the goal coverage [s], episodes that did not reach
-                 it count with the time limit (a lower bound of their time)
+                 it count with the time limit (a lower bound of their time),
+                 with --time_failed exclude only the successful episodes
   overlap_goal   overlap when the goal coverage was reached, only maps where
                  both policies reached it in every episode
   collisions     all collisions of all robots per episode
@@ -36,7 +39,7 @@ import numpy as np
 from scipy import stats
 
 # (key, lower is better)
-METRICS = [('success', False), ('time_goal', True), ('overlap_goal', True), ('collisions', True),
+METRICS = [('success', False), ('collision', True), ('timeout', True), ('time_goal', True), ('overlap_goal', True), ('collisions', True),
            ('robot_coll', True), ('path_length', None), ('imbalance', True)]
 
 
@@ -52,23 +55,34 @@ def load(data):
 def episode_metrics(r, goal, limit):
     g = round(100 * goal)
     t = float(r[f'time_{g}'])
-    return dict(success=float(r['success']), time_goal=t if np.isfinite(t) else limit,
+    success = float(r['success'])
+    collision = float(r.get('collision', 0))
+    if limit is None:
+        t = t if success else np.nan
+    return dict(success=success, collision=collision, timeout=1 - success - collision,
+                time_goal=t if np.isfinite(t) or limit is None else limit,
                 overlap_goal=float(r[f'overlap_{g}']), collisions=float(r['collisions']),
                 robot_coll=float(r['robot_collisions']), path_length=float(r['path_length']),
                 imbalance=float(r['imbalance']))
 
 
-def per_map(rows, info):
+def per_map(rows, info, time_failed='limit'):
     """{(map_set, method, N): {map: {metric: mean over episodes}}}, overlap_goal nan unless all episodes reached it"""
     acc = defaultdict(lambda: defaultdict(list))
     for r in rows:
         s = info[r['map_set']]
         acc[(r['map_set'], r['method'], int(r['num_agents']))][r['map']].append(
-            episode_metrics(r, s['goal_coverage'], s['max_steps'] * 0.5))
+            episode_metrics(r, s['goal_coverage'], s['max_steps'] * 0.5 if time_failed == 'limit' else None))
     out = {}
     for k, maps in acc.items():
-        out[k] = {m: {key: float(np.mean([e[key] for e in eps])) for key, _ in METRICS} for m, eps in maps.items()}
+        mean = np.mean if time_failed == 'limit' else nanmean
+        out[k] = {m: {key: float(mean([e[key] for e in eps])) for key, _ in METRICS} for m, eps in maps.items()}
     return out
+
+
+def nanmean(x):
+    x = np.asarray(x, dtype=float)
+    return np.nanmean(x) if np.any(np.isfinite(x)) else np.nan
 
 
 def holm(p):
@@ -104,9 +118,11 @@ def main():
     parser.add_argument('--data', default='results/compare_sa')
     parser.add_argument('--pair', action='append', required=True, help="'METHOD A:METHOD B', difference B - A")
     parser.add_argument('--seed', default=0, type=int)
+    parser.add_argument('--time_failed', default='limit', choices=['limit', 'exclude'],
+                        help='time to the goal of the episodes that did not reach it: the time limit, or excluded')
     args = parser.parse_args()
     rows, info = load(args.data)
-    pm = per_map(rows, info)
+    pm = per_map(rows, info, args.time_failed)
     rng = np.random.default_rng(args.seed)
     results = []
     for pair in args.pair:
@@ -153,7 +169,8 @@ def main():
                     if r is None:
                         line += f'{"-":>34s}'
                         continue
-                    fmt = (lambda v: f'{v:.2f}') if key in ('success', 'imbalance') else (lambda v: f'{v:.3g}')
+                    fmt = (lambda v: f'{v:.2f}') if key in ('success', 'collision', 'timeout', 'imbalance') \
+                        else (lambda v: f'{v:.3g}')
                     cell = f'{fmt(r["estimate_A"])}->{fmt(r["estimate_B"])} ({100 * r["rel"]:+.0f}%){"*" if r["significant"] else " "}'
                     line += f'{cell:>34s}'
                 print(line)

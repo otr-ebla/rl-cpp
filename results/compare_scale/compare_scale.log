@@ -19,3 +19,31 @@ IPPO scale 2           seed 0  N=1  success 0.69  coverage 0.898  time_95  7439.
 IPPO scale 2           seed 0  N=2  success 0.96  coverage 0.949  time_95  4058.2 s  overlap_95  59.0 %  robot coll.  36.8  (261 s, total 8 min)
 IPPO scale 2           seed 0  N=4  success 1.00  coverage 0.950  time_95  2083.1 s  overlap_95  59.3 %  robot coll. 516.9  (108 s, total 10 min)
 IPPO scale 2           seed 0  N=8  success 1.00  coverage 0.950  time_95  1148.9 s  overlap_95  62.0 %  robot coll. 1612.5  (217 s, total 14 min)
+IPPO scale 3           seed 0  N=1  success 0.98  coverage 0.949  time_95  6679.9 s  overlap_95  35.6 %  robot coll.   0.0  (363 s, total 20 min)
+IPPO scale 3           seed 0  N=2  success 1.00  coverage 0.950  time_95  3335.4 s  overlap_95  35.1 %  robot coll.   0.2  (174 s, total 23 min)
+IPPO scale 3           seed 0  N=4  success 1.00  coverage 0.950  time_95  1721.3 s  overlap_95  37.5 %  robot coll.   1.7  (74 s, total 24 min)
+IPPO scale 3           seed 0  N=8  success 1.00  coverage 0.950  time_95   900.5 s  overlap_95  42.6 %  robot coll.   9.0  (53 s, total 25 min)
+IPPO scale 4           seed 0  N=1  success 1.00  coverage 0.950  time_95  6127.0 s  overlap_95  25.7 %  robot coll.   0.0  (157 s, total 28 min)
+IPPO scale 4           seed 0  N=2  success 1.00  coverage 0.950  time_95  3126.6 s  overlap_95  27.1 %  robot coll.   0.0  (86 s, total 29 min)
+IPPO scale 4           seed 0  N=4  success 1.00  coverage 0.950  time_95  1620.8 s  overlap_95  30.3 %  robot coll.   0.2  (53 s, total 30 min)
+IPPO scale 4           seed 0  N=8  success 1.00  coverage 0.950  time_95   867.9 s  overlap_95  37.2 %  robot coll.   1.1  (37 s, total 31 min)
+2026-10-29 13:14:58 test_large done
+2026-10-29 13:14:58 paper started
+map set paper: 38 maps x 3 episodes, robots [1, 2, 4, 8], 3 checkpoints, JAX device cuda:0
+IPPO scale 2           seed 0  N=1  success 0.89  coverage 0.936  time_95  5359.6 s  overlap_95  44.2 %  robot coll.   0.0  (269 s, total 4 min)
+IPPO scale 2           seed 0  N=2  success 0.97  coverage 0.949  time_95  3752.5 s  overlap_95  50.5 %  robot coll.  51.6  (273 s, total 9 min)
+IPPO scale 2           seed 0  N=4  success 0.99  coverage 0.950  time_95  2127.4 s  overlap_95  54.8 %  robot coll. 516.7  (292 s, total 14 min)
+IPPO scale 2           seed 0  N=8  success 0.99  coverage 0.950  time_95  1245.3 s  overlap_95  63.7 %  robot coll. 1675.3  (328 s, total 19 min)
+IPPO scale 3           seed 0  N=1  success 0.88  coverage 0.940  time_95  4731.5 s  overlap_95  31.8 %  robot coll.   0.0  (427 s, total 26 min)
+IPPO scale 3           seed 0  N=2  success 1.00  coverage 0.950  time_95  3642.4 s  overlap_95  39.5 %  robot coll.   0.1  (395 s, total 33 min)
+IPPO scale 3           seed 0  N=4  success 1.00  coverage 0.950  time_95  1773.8 s  overlap_95  38.1 %  robot coll.   1.6  (170 s, total 36 min)
+IPPO scale 3           seed 0  N=8  success 1.00  coverage 0.951  time_95   938.8 s  overlap_95  44.8 %  robot coll.   8.1  (71 s, total 37 min)
+IPPO scale 4           seed 0  N=1  success 0.94  coverage 0.947  time_95  5143.7 s  overlap_95  23.6 %  robot coll.   0.0  (223 s, total 41 min)
+IPPO scale 4           seed 0  N=2  success 1.00  coverage 0.950  time_95  3122.5 s  overlap_95  27.3 %  robot coll.   0.0  (139 s, total 43 min)
+IPPO scale 4           seed 0  N=4  success 1.00  coverage 0.950  time_95  1641.1 s  overlap_95  32.9 %  robot coll.   0.2  (78 s, total 44 min)
+IPPO scale 4           seed 0  N=8  success 1.00  coverage 0.950  time_95   921.6 s  overlap_95  45.8 %  robot coll.   1.2  (51 s, total 45 min)
+2026-10-29 14:00:17 paper done
+one page comparison: results/compare_scale/dashboard_compare.pdf
+data shown in the dashboard: results/compare_scale/dashboard_compare_data
+2026-10-29 14:00:38 one page comparison: results/compare_scale/dashboard_compare.pdf
+2026-10-29 14:00:43 paired tests: results/compare_scale/stats.txt

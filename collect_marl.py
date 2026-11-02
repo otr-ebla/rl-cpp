@@ -30,7 +30,12 @@ gives their colors in the dashboard) and the settings of each map set. Then
 <out>/dashboard_data/ (see dashboard_marl.py).
 
 Per episode metrics:
-  success            reached --goal_coverage within --max_steps
+  outcome            success, collision or timeout: exactly one per episode
+  success            reached --goal_coverage within --max_steps (without a
+                     collision with collision_ends_episode)
+  collision          ended by a collision (only with collision_ends_episode)
+  collision_robot    ended by a collision that involved another robot
+  timeout            reached neither the goal coverage nor a collision
   coverage           final team coverage
   time_90/95/99      time to 90/95/99 % coverage [s] (nan if not reached)
   overlap            final overlap: covered again / covered
@@ -245,9 +250,15 @@ class Evaluator:
         for e, m in enumerate(map_ids):
             ep = dict(common, map=self.map_names[m], episode=int(episodes[e]))
             covered_by = res['covered_by'][e]
+            # with collision_ends_episode the episode stops at the first collision
+            collision = env_cfg.collision_ends_episode and int(res['collisions'][e]) > 0
+            success = not collision and res['coverage'][e] >= args.goal_coverage
+            outcome = 'success' if success else 'collision' if collision else 'timeout'
             row = dict(ep, checkpoint=path, comm_range=env_cfg.comm_range, map_size=self.map_sizes[m],
-                       steps=int(res['steps'][e]), time=int(res['steps'][e]) * dt,
-                       success=int(res['coverage'][e] >= args.goal_coverage), coverage=float(res['coverage'][e]))
+                       steps=int(res['steps'][e]), time=int(res['steps'][e]) * dt, outcome=outcome,
+                       success=int(success), collision=int(collision),
+                       collision_robot=int(collision and int(res['robot_collisions'][e]) > 0),
+                       timeout=int(outcome == 'timeout'), coverage=float(res['coverage'][e]))
             for th in THRESHOLDS:
                 i = int(round(th * 100)) - 1
                 row[f'time_{i + 1}'] = float(res['level_step'][e, i]) * dt
@@ -339,6 +350,7 @@ def main():
                 mean = lambda k: np.nanmean([x[k] for x in r])
                 p = round(100 * args.goal_coverage) if round(100 * args.goal_coverage) in (90, 95, 99) else 99
                 print(f'{name:22s} seed {r[0]["seed"]:<2d} N={n:<2d} success {mean("success"):.2f}  '
+                      f'collision {mean("collision"):.2f}  timeout {mean("timeout"):.2f}  '
                       f'coverage {mean("coverage"):.3f}  time_{p} {mean(f"time_{p}"):7.1f} s  '
                       f'overlap_{p} {100 * mean(f"overlap_{p}"):5.1f} %  robot coll. {mean("robot_collisions"):5.1f}'
                       f'  ({time.time() - t0:.0f} s, total {(time.time() - t_start) / 60:.0f} min)', flush=True)
