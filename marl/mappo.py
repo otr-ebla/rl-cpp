@@ -476,7 +476,7 @@ def load_init_params(path, env_cfg: EnvConfig, train_cfg: TrainConfig):
     actor must match the networks of env_cfg / train_cfg. The critic is only
     loaded when it has the same structure, otherwise it is None (newly
     initialized), e.g. IPPO (local critic) started from a MAPPO checkpoint or
-    from init_from_sb3.py, whose critic is new anyway.
+    from scripts/multi_agent/init_from_sb3.py, whose critic is new anyway.
     """
     actor, critic = make_networks(env_cfg, train_cfg)
     actor_target, critic_target = init_params(env_cfg, actor, critic, jax.random.PRNGKey(0))

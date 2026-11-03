@@ -3,7 +3,7 @@ import random
 import cv2
 import numpy as np
 
-import make_giant_maps
+from scripts.single_agent import make_giant_maps
 from rlm.mower_env import MowerEnv
 
 

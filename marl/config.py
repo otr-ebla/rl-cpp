@@ -1,5 +1,8 @@
+from argparse import BooleanOptionalAction
 from dataclasses import dataclass, asdict, fields
+import json
 import math
+import os
 
 
 @dataclass(frozen=True)
@@ -265,12 +268,12 @@ class TrainConfig:
     adapted after each iteration from its final KL, to keep it near target_kl
     (see marl.mappo.MAPPO._adapt_actor_lr), instead of annealing it (the
     critic still uses anneal_lr). Useful with a sharp (nearly deterministic)
-    initial policy, e.g. from init_from_sb3.py, where a fixed learning rate
+    initial policy, e.g. from scripts/multi_agent/init_from_sb3.py, where a fixed learning rate
     either freezes the actor (KL early stopping after the first minibatch)
     or moves it too far.
     critic_warmup: number of first iterations that only train the critic,
     with the actor frozen, e.g. when the actor is initialized from a trained
-    policy (init_from_sb3.py) and the critic is new: the advantages of an
+    policy (scripts/multi_agent/init_from_sb3.py) and the critic is new: the advantages of an
     untrained critic would otherwise move the actor away from it.
     stop_update: stops the training after this update (0: off), with the
     learning rates still annealed over total_steps, e.g. to give another run
@@ -338,3 +341,24 @@ class TrainConfig:
     def from_dict(cls, d):
         names = {f.name for f in fields(cls)}
         return cls(**{k: v for k, v in d.items() if k in names})
+
+
+def add_dataclass_args(parser, cls, title):
+    """Add every field of the dataclass cls as a command line argument (booleans as --flag / --no-flag)"""
+    group = parser.add_argument_group(title)
+    for f in fields(cls):
+        if f.type in (bool, 'bool'):
+            group.add_argument(f'--{f.name}', default=f.default, action=BooleanOptionalAction)
+        else:
+            typ = {'int': int, 'float': float, 'str': str}.get(f.type, f.type)
+            group.add_argument(f'--{f.name}', default=f.default, type=typ)
+
+
+def read_config(path):
+    """Settings (env and train) of a run directory, checkpoint directory or config.json"""
+    if os.path.isdir(path):
+        path = os.path.join(path, 'config.json')
+    with open(path) as f:
+        config = json.load(f)
+    names = {f.name for cls in (EnvConfig, TrainConfig) for f in fields(cls)}
+    return {k: v for k, v in {**config['env'], **config['train']}.items() if k in names}

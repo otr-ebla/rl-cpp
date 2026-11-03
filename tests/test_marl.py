@@ -405,7 +405,7 @@ def test_adaptive_actor_lr():
 
 
 def test_ippo_from_mappo_checkpoint(tmp_path):
-    """IPPO started from a MAPPO checkpoint (e.g. init_from_sb3.py): same actor, new local critic"""
+    """IPPO started from a MAPPO checkpoint (e.g. scripts/multi_agent/init_from_sb3.py): same actor, new local critic"""
     from marl.mappo import MAPPO, load_init_params, save_checkpoint
     env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8)
     mappo_cfg = TrainConfig(num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, hidden_dims=32)
@@ -443,17 +443,17 @@ def test_stop_update(tmp_path):
 
 
 def test_config_from(tmp_path):
-    """train_marl.py --config_from: the settings of another run are the defaults, the command line wins"""
+    """scripts/multi_agent/train.py --config_from: the settings of another run are the defaults, the command line wins"""
     import json
     import sys
     from unittest import mock
-    import train_marl
+    from scripts.multi_agent import train as train_marl
     env_cfg = EnvConfig(num_agents=3, lidar_fov=180)
     train_cfg = TrainConfig(critic_warmup=20, seed=7, adaptive_lr=True)
     with open(tmp_path / 'config.json', 'w') as f:
         json.dump({'env': env_cfg.to_dict(), 'train': train_cfg.to_dict()}, f)
     seen = {}
-    argv = ['train_marl.py', '--config_from', str(tmp_path), '--algo', 'ippo', '--logdir', str(tmp_path / 'run')]
+    argv = ['scripts/multi_agent/train.py', '--config_from', str(tmp_path), '--algo', 'ippo', '--logdir', str(tmp_path / 'run')]
     with mock.patch.object(sys, 'argv', argv), \
             mock.patch('marl.mappo.train', lambda e, t, *a, **k: seen.update(env=e, train=t)):
         train_marl.main()

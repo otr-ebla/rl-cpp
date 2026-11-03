@@ -1,6 +1,6 @@
 # RL Coverage Path Planning
 
-Code implementation of the conference paper [__Learning Coverage Paths in Unknown Environments with Deep Reinforcement Learning, ICML, 2024__](https://proceedings.mlr.press/v235/jonnarth24a.html), and its journal extension [__Sim-to-Real Transfer of Deep Reinforcement Learning Agents for Online Coverage Path Planning, IEEE Access, 2025__](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=11039829).
+Code implementation of the conference paper [__Learning Coverage Paths in Unknown Environments with Deep Reinforcement Learning, ICML, 2024__](https://proceedings.mlr.press/v235/jonnarth24a.html), and its journal extension [__Sim-to-Real Transfer of Deep Reinforcement Learning Agents for Online Coverage Path Planning, IEEE Access, 2025__](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=11039829), extended to multiple robots (MAPPO/IPPO in JAX).
 
 Lawn mowing | Exploration
 :-------------------------:|:-------------------------:
@@ -10,100 +10,126 @@ WITHOUT total variation reward | WITH total variation reward
 :-------------------------:|:-------------------------:
 <img src="figures/mowing_no_tv.png" alt="without total variation reward" width="300" /> | <img src="figures/mowing_tv.png" alt="with total variation reward" width="300" />
 
+## Repository layout
+
+```
+rlm/                    single-agent library (original paper: gym env, SB3 networks)
+marl/                   multi-agent library (JAX env, MAPPO/IPPO, statistics)
+scripts/
+  single_agent/         train, eval, plot, show_path, make_giant_maps, corridor_test
+  multi_agent/          train, eval, play, collect, benchmark, init_from_sb3,
+                        make_test_maps, corridor_test
+  analysis/             dashboard, dashboard_compare, paired_stats
+pipelines/              end-to-end shell workflows (training baselines, comparisons)
+tests/                  pytest suite (single- and multi-agent)
+maps/                   training, evaluation, held-out test and corridor maps
+weights/                pre-trained single-agent models
+results/                comparison results (PDFs + the CSV data they show)
+experiments/            training runs (not tracked)
+```
+
+Every script runs from the repository root as a module, e.g. `python -m scripts.multi_agent.train --help`.
+
 ## Install
 
-* [Install miniconda](https://docs.conda.io/en/latest/miniconda.html)
-* `conda create -n rlm python=3.9`
-* `conda activate rlm`
-* `pip install setuptools==65.5.0 pip==21`
-* `pip install wheel==0.38.0`
+The single-agent and multi-agent code have separate environments.
+
+Single-agent (Python 3.9, gym, torch, stable-baselines3):
+* [Install miniconda](https://docs.conda.io/en/latest/miniconda.html), then `conda create -n rlm python=3.9 && conda activate rlm`
+* `pip install setuptools==65.5.0 pip==21 && pip install wheel==0.38.0`
 * (CPU) `pip install torch==1.13.1+cpu torchvision==0.14.1+cpu -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu`
 * (GPU) `pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu116`
 
-## Run
-
-Train an RL agent for CPP in a simulated 2D environment (reduce `--buffer_size` if memory is limited):
-* Mowing: `python train.py --logdir my-experiment`
-* Exploration: `python train.py --logdir my-experiment --exploration --local_tv_reward_scale 0.2 --no-overlap_observation --no-steering_limits_lin_vel`
-
-Check how the trained agent performs:
-* Plot logs: `python plot.py --load my-experiment`
-* Render: `python eval.py --load my-experiment` (add `--render_mode full` to also show the multi-scale observations)
-
-Rendering uses pygame. Keyboard controls in the render window:
-* `c`: show/hide the multi-scale map crops, centered on and rotated with the agent (the thick edge is the forward direction), also outlined in the observation panels
-* `m`: switch the observation panels between the composite view and each scale shown separately, as received by the network (with `--render_mode full`)
-* `s`: cycle the simulation speed: x1 (real time), x2, x4, x8, max
-* `q`/`Esc`: quit
-
-Evaluate on maps larger than the region covered by the largest scale of the multi-scale maps (76.8 m with the default parameters):
-* Generate maps: `python make_giant_maps.py --task exploration --method tile --size 108 --num 5` (`--method tile` is a mosaic of the evaluation maps, `--method random` uses the generator of the training maps)
-* Evaluate: `python eval.py --load my-experiment --maps "maps/giant_exploration_tile_*.png" --render_mode full`
-
-Run full quantitative evaluation and show the resulting paths and metrics:
-* Run eval: `python eval.py --load my-experiment --verbose --no-render --metrics_dir metrics`
-* Show path: `python show_path.py --metrics_dir my-experiment/metrics --type eval --episode 1`
-
-## Pre-trained weights
-
-Pre-trained weights can be found at [this link](https://drive.google.com/file/d/1hJXxRQTaFd0MEuB2UuQT9D6I-p_QXiAM/view?usp=sharing). The zip file contains three models:
-* __exploration__: An exploration CPP model configured for Explore-Bench.
-* __mowing_tv1__: A CPP model for the lawn mowing task, with an incremental TV reward of 1.
-* __mowing_tv2__: Same as _mowing_tv1_, but with TV reward = 2. Makes slightly nicer looking patterns, but has slower coverage times on average.
-
-Each folder contains a metrics folder. Visualize the paths like this:
-* `python show_path.py --metrics_dir weights/mowing_tv1/metrics --type eval --episode 1`
-
-## Tests
-
-Run tests:
-* Run `pytest` from the root folder.
-
-## Multi-agent lawn mowing (MAPPO, JAX)
-
-The `marl` package extends the mowing task to N robots, trained with MAPPO (centralized training, decentralized execution). The environment, the networks and the training all run in JAX, so thousands of environments can be simulated and trained in parallel on a GPU.
-
-* All robots share one global map (perfect communication). Each step all robots move simultaneously, the shared coverage and known obstacle maps are updated with the contributions of all robots, and each robot extracts its own egocentric multi-scale observation from the shared maps.
-* The observation of each robot is the same as in the single-agent case (coverage, known obstacles, frontier, lidar), plus a multi-scale map of the other robots' positions. Robots are dynamic obstacles: they are seen by the lidar and collisions between robots are penalized, but they are not added to the obstacle map.
-* The actor only uses the robot's own observation, and its parameters are shared between robots, so a trained policy can be run with any number of robots. The centralized critic also sees an agent-specific global state: global maps of the coverage, the true and the known obstacles and all robots, the robot's own position, and the team coverage and elapsed time.
-* IPPO baseline (`--algo ippo`): independent PPO with a local critic V(o_i) that only sees the robot's own observation, the same inputs as the actor. Everything else is unchanged (shared global maps, parameter sharing for actor and critic, reward, hyperparameters), so the comparison with MAPPO isolates the effect of the centralized critic.
-* Limited communication (`--comm_range 5`, in meters; default 0 = unlimited, the shared global map above): each robot keeps its own belief of the coverage and known obstacle maps, built from its own coverage and lidar detections. Every step, the robots that are connected (within `comm_range` of each other, directly or through other robots) merge their beliefs with OR (maximum of the overlap counts), and each robot's observation is extracted from its own belief. The robot map of the observation only shows the connected robots. Rewards, metrics and the global state of the centralized critic still use the true global maps (centralized training).
-* Reward: the single-agent reward per robot, where the area term mixes the robot's own newly covered area and the team's newly covered area divided by N (`--team_reward_weight`, 0 = individual, 1 = team). Area covered by k robots in the same step is split 1/k between them. The incremental total variation term is computed on each robot's own contribution.
-* Maps of different sizes are placed on a fixed canvas (`--canvas_size`, 320 pixels for the training maps). The training levels follow `MowerEnv._set_level` (fixed training maps, then random maps); random maps are drawn from a bank that is regenerated periodically.
-
-Install: the multi-agent code does not use the single-agent code (`rlm/`) or its old dependencies (Python 3.9, gym, torch), so it has its own environment with a modern Python (3.11-3.13 tested) and `requirements-marl.txt`. On Ubuntu with an NVIDIA GPU:
+Multi-agent (Python 3.11-3.13, JAX; does not use `rlm/`):
 * `python3 -m venv .venv-marl && source .venv-marl/bin/activate`
 * `pip install -U pip && pip install -r requirements-marl.txt`
-* Check that JAX sees the GPU: `python -c "import jax; print(jax.devices())"` should list a `CudaDevice`. The `jax[cuda12]` wheels include CUDA and cuDNN, only the NVIDIA driver is needed (driver >= 525 for CUDA 12; with a driver >= 580 `jax[cuda13]` can be used instead).
-* Run the tests: `pytest` (tests of the single-agent code are skipped when their dependencies are not installed)
-* Measure the speed on the GPU and choose `--num_envs`: `python benchmark_marl.py --num_envs 256 1024 4096`
+* Check that JAX sees the GPU: `python -c "import jax; print(jax.devices())"` should list a `CudaDevice`. The `jax[cuda12]` wheels include CUDA and cuDNN, only the NVIDIA driver is needed (>= 525; with >= 580 `jax[cuda13]` can be used instead).
 
-Train and evaluate:
-* Train with 4 robots: `XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python train_marl.py --logdir experiments/marl_4 --num_agents 4`
-* Train the IPPO baseline with the same settings: `XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python train_marl.py --logdir experiments/ippo_4 --num_agents 4 --algo ippo`
-* Train with a 5 m communication range: `XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python train_marl.py --logdir experiments/marl_4_comm5 --num_agents 4 --comm_range 5` (`eval_marl.py` and `play_marl.py` take `--comm_range` to evaluate with another range; in `play_marl.py` the `b` key shows the belief of the selected robot)
-* Start from the trained single-agent policy: `python init_from_sb3.py --load weights/mowing_tv1 --out experiments/sb3_init/checkpoint --lidar_fov 180` converts its actor (read without torch) into a MARL checkpoint (the pose branch of the other robots starts at zero, so the initial policy is the single-agent one; the critic is new), then `XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python train_marl.py --logdir experiments/mappo_sb3 --checkpoint experiments/sb3_init/checkpoint --lidar_fov 180 --critic_warmup 20` (`--critic_warmup`: first iterations that only train the critic). Use the same observation settings as the single-agent policy (lidar field of view 180 degrees for `weights/mowing_tv1`)
-* Single agent replicated on N robots vs MAPPO vs IPPO, on the same episodes of the three map sets:
-  * `./train_ippo_sb3.sh` trains the IPPO baseline exactly as `experiments/mappo_sb3_v2` (all settings copied from its `config.json` with `train_marl.py --config_from`, same initialization from `experiments/sb3_init`), only with the local critic, into `experiments/ippo_sb3_v2`. A checkpoint whose critic does not match the configuration (here the centralized critic of the initial checkpoint) only initializes the actor.
-  * `ONLY=ippo ./compare_sa.sh` collects IPPO (best and last checkpoint, with and without `flip_when_stuck`) next to the methods already in `results/compare_sa` (`./compare_sa.sh` collects everything again), then draws `dashboard.pdf`, the one page comparison `dashboard_compare.pdf` and the paired tests `stats.txt`.
-  * `python dashboard_compare.py --data results/compare_sa` redraws the one page comparison: one column per map set, success rate, time to the goal coverage, team efficiency against the single-agent policy with 1 robot, overlap, collisions between robots, workload imbalance and coverage over time against the number of robots, (by default the single-agent policy replicated on N robots, MAPPO and IPPO, without `flip_when_stuck`, `--methods` to choose) and one summary table (one row per method, one column per metric, mean over all map sets and team sizes, best of each column highlighted). The values are written to `dashboard_compare_data/`; the paired tests over maps (Wilcoxon, Holm) are in `stats.txt` (`compare_sa_stats.py`).
-* Use as many parallel environments as the GPU memory allows (see `benchmark_marl.py`). The rollout stores `num_envs * num_steps * num_agents` uint8 observations of 32x32x16 bytes, plus one 64x64x4 global map per environment and step: with 4 robots and `--num_steps 128`, an update needs about 2.5 GB + 10.6 MB per environment (about 5 GB for 256 environments, 13 GB for 1024). Gradients are computed on minibatches of `--minibatch_size` agent samples (default 4096), independent of `--num_envs`.
-* `--total_steps` counts environment steps (each one is `num_agents` agent steps). Every field of `marl/config.py` is a command line argument.
-* Logs are written to `<logdir>/progress.csv`, checkpoints to `<logdir>/checkpoint`.
-* Evaluate on the mowing evaluation maps: `python eval_marl.py --load experiments/marl_4/checkpoint` (add `--num_agents 8` to change the number of robots, `--maps "maps/giant_mowing_*.png"` for other maps). Writes `metrics.csv` (coverage, time to 90/95/99% coverage, overlap, collisions) and an image of the robot paths per episode to `<checkpoint>/eval`.
-* Compare methods with statistical evidence (several training seeds, many test maps):
-  * `python train_seeds.py` trains MAPPO, IPPO and MAPPO with a 5 m communication range with seeds 0-4 (same settings, 50M steps each), one run after the other, into `experiments/seeds/<method>_s<seed>`. Finished runs are skipped, so it can be restarted.
-  * `python make_test_maps.py` generates 100 small (2.4-7.5 m, the sizes of the training maps) and 100 large (12-24 m) held-out random test maps with the training map generator and a seed not used in training (`maps/test_small_*.png`, `maps/test_large_*.png`).
-  * `./eval_seeds.sh` evaluates every seed of every method on the small and large test maps and on the evaluation maps of the paper (mowing and exploration), with 1-8 robots, then draws `results/eval/dashboard.pdf`. It calls `collect_marl.py`, which runs the same episodes (same maps and start poses, deterministic actions) for every policy and writes one row per episode to `episodes.csv` (time to 90/95/99% coverage, overlap when they are reached, collisions between robots, workload imbalance, belief recall and connectivity with limited communication, ...) and the time and overlap at each coverage level to `curves.csv`. A run is `NAME=CHECKPOINT_GLOB[,env_option=value]`, e.g. `--run "MAPPO tested at 5 m=experiments/seeds/mappo_s*/checkpoint,comm_range=5"`; methods collected again replace their old rows.
-  * Redraw the dashboard: `python dashboard_marl.py --data results/eval` (`--map_sets`, `--ref_agents`, `--threshold`). Two pages per map set: an overview and the statistical tests of every pair of methods. Estimates are the mean over maps of the mean over seeds; confidence intervals and p-values use the variance between seeds and between maps (Welch t test, Holm correction), see `marl/stats.py`. Every value the PDF shows (points, curves, summary tables, all test results with raw and Holm-corrected p-values) is also written to `results/eval/dashboard_data/` (`points.csv`, `curves.csv`, `tests.csv`, `info.json`), next to the raw data of `collect_marl.py`.
-* Watch the robots live in a pygame window: `python play_marl.py --load experiments/marl_4/checkpoint` (same `--maps` and `--num_agents` options; keys: space pause, s/a speed, n/p map, tab robot, c multi-scale crops, m separate scales, l lidar, t paths, q quit).
+Tests: `pytest` in either environment (tests whose dependencies are not installed are skipped).
 
-Notes:
+## Single agent
+
+Train (reduce `--buffer_size` if memory is limited):
+* Mowing: `python -m scripts.single_agent.train --logdir my-experiment`
+* Exploration: `python -m scripts.single_agent.train --logdir my-experiment --exploration --local_tv_reward_scale 0.2 --no-overlap_observation --no-steering_limits_lin_vel`
+
+Inspect:
+* Plot logs: `python -m scripts.single_agent.plot --load my-experiment`
+* Render: `python -m scripts.single_agent.eval --load my-experiment` (`--render_mode full` also shows the multi-scale observations). Keys: `c` multi-scale crops, `m` composite / separate scales, `s` simulation speed (x1, x2, x4, x8, max), `q`/`Esc` quit.
+* Full evaluation: `python -m scripts.single_agent.eval --load my-experiment --verbose --no-render --metrics_dir metrics`, then `python -m scripts.single_agent.show_path --metrics_dir my-experiment/metrics --type eval --episode 1`
+
+Maps larger than the largest scale of the multi-scale maps (76.8 m by default):
+* `python -m scripts.single_agent.make_giant_maps --task exploration --method tile --size 108 --num 5` (`tile`: mosaic of the evaluation maps, `random`: the training map generator)
+* `python -m scripts.single_agent.eval --load my-experiment --maps "maps/giant_exploration_tile_*.png" --render_mode full`
+
+Corridor test (a corridor longer than the largest scale, results in `results/corridor/`): `python -m scripts.single_agent.corridor_test --load weights/mowing_tv1`
+
+### Pre-trained weights
+
+In `weights/` (also at [this link](https://drive.google.com/file/d/1hJXxRQTaFd0MEuB2UuQT9D6I-p_QXiAM/view?usp=sharing)):
+* __exploration__: exploration CPP model configured for Explore-Bench.
+* __mowing_tv1__: lawn mowing, incremental TV reward of 1.
+* __mowing_tv2__: same with TV reward 2: slightly nicer patterns, slower coverage on average.
+
+Show the recorded paths: `python -m scripts.single_agent.show_path --metrics_dir weights/mowing_tv1/metrics --type eval --episode 1`
+
+## Multi agent (MAPPO / IPPO, JAX)
+
+The `marl` package extends the mowing task to N robots, trained with MAPPO (centralized training, decentralized execution). Environment, networks and training all run in JAX, so thousands of environments are simulated and trained in parallel on a GPU.
+
+* All robots share one global map (perfect communication). Each step all robots move simultaneously, the shared coverage and known obstacle maps are updated with the contributions of all robots, and each robot extracts its own egocentric multi-scale observation from the shared maps.
+* The observation of each robot is the single-agent one (coverage, known obstacles, frontier, lidar) plus a multi-scale map of the other robots' positions. Robots are dynamic obstacles: seen by the lidar, collisions between robots are penalized, not added to the obstacle map (unless `--robot_lidar_obstacles`).
+* The actor only uses the robot's own observation and its parameters are shared between robots, so a policy runs with any number of robots. The centralized critic also sees an agent-specific global state: global maps of the coverage, the true and known obstacles and all robots, the robot's own position, the team coverage and elapsed time.
+* IPPO (`--algo ippo`): local critic V(o_i) with the same inputs as the actor; everything else unchanged, so the comparison with MAPPO isolates the centralized critic.
+* Limited communication (`--comm_range 5`, meters; 0 = unlimited): each robot keeps its own belief of the coverage and obstacle maps; connected robots (within range, directly or through others) merge beliefs every step. Rewards, metrics and the critic still use the true global maps. `--no_communication` disables it entirely.
+* Reward: the single-agent reward per robot, where the area term mixes the robot's own and the team's newly covered area divided by N (`--team_reward_weight`, 0 = individual, 1 = team). Area covered by k robots in the same step is split 1/k. The incremental total variation term uses each robot's own contribution.
+* Maps of different sizes are placed on a fixed canvas (`--canvas_size`, 320 pixels for the training maps). The training levels follow `MowerEnv._set_level`; random maps come from a bank regenerated periodically.
+
+Every field of `marl/config.py` is a command line argument (booleans as `--flag` / `--no-flag`). Logs go to `<logdir>/progress.csv`, checkpoints to `<logdir>/checkpoint` and `<logdir>/checkpoint_best`.
+
+### Train
+
+* From scratch: `python -m scripts.multi_agent.train --logdir experiments/mappo_4 --num_agents 4` (`--algo ippo`, `--comm_range 5`, ...)
+* From the trained single-agent policy (how all runs in `results/` were trained):
+  1. `python -m scripts.multi_agent.init_from_sb3 --load weights/mowing_tv1 --out experiments/sb3_init/checkpoint --lidar_fov 180` converts its actor (read without torch) into a MARL checkpoint. The pose branch of the other robots starts at zero, so the initial policy is the single-agent one; the critic is new.
+  2. `python -m scripts.multi_agent.train --logdir experiments/mappo_sb3_v2 --checkpoint experiments/sb3_init/checkpoint --lidar_fov 180 --critic_warmup 20` (`--critic_warmup`: first iterations only train the critic).
+* Baselines trained exactly as `experiments/mappo_sb3_v2` (same settings via `--config_from`, initialization and budget), changing only one thing: `pipelines/train_from_mappo.sh <recipe>` with `ippo_sb3_v2` (local critic), `sa_indep` (independent robots, no communication), `mappo_obst` / `ippo_obst` (other robots in the obstacle map).
+* Pick `--num_envs` with `python -m scripts.multi_agent.benchmark --num_envs 256 1024 4096`. The rollout stores `num_envs * num_steps * num_agents` uint8 observations of 32x32x16 bytes plus one 64x64x4 global map per environment and step: with 4 robots and `--num_steps 128`, about 2.5 GB + 10.6 MB per environment. Gradients use minibatches of `--minibatch_size` agent samples (default 4096).
+* `--total_steps` counts environment steps (each one is `num_agents` agent steps).
+
+Long jobs on the lab machine: `systemd-run --user --unit=<name> --working-directory=$PWD <command>` (survives logout), with `XLA_PYTHON_CLIENT_MEM_FRACTION=0.9` (set by default by the train script and the pipelines).
+
+### Evaluate and watch
+
+* Quick evaluation on the mowing evaluation maps: `python -m scripts.multi_agent.eval --load experiments/mappo_sb3_v2/checkpoint_best` (`--num_agents 8`, `--maps "maps/giant_mowing_*.png"`). Writes `metrics.csv` and path images to `<checkpoint>/eval`.
+* Live pygame viewer: `python -m scripts.multi_agent.play --load experiments/mappo_sb3_v2/checkpoint_best --num_agents 8` (`JAX_PLATFORMS=cpu` runs it without the GPU). Keys: space pause, s/a speed, n/p map, tab robot, b belief of the selected robot, c multi-scale crops, m separate scales, l lidar, t paths, q quit.
+* Corridor test: `python -m scripts.multi_agent.corridor_test --load experiments/mappo_sb3_v2/checkpoint_best`
+* Held-out test maps (already in `maps/`): `python -m scripts.multi_agent.make_test_maps` generates 100 small (2.4-7.5 m, training sizes) and 100 large (12-24 m) random maps with a seed not used in training.
+
+### Compare methods
+
+`scripts.multi_agent.collect` runs the same episodes (same maps, start poses, seed, deterministic actions) for every policy and writes one row per episode to `episodes.csv` and coverage curves to `curves.csv`. A run is `NAME=CHECKPOINT_GLOB[,env_option=value,...]`, e.g. `--run "MAPPO + flip=experiments/mappo_sb3_v2/checkpoint_best,flip_when_stuck=true"`; methods collected again replace their old rows. The analysis scripts then draw from that data:
+* `scripts.analysis.dashboard`: two pages per map set (overview, statistical tests of every pair, across seeds and maps, see `marl/stats.py`).
+* `scripts.analysis.dashboard_compare`: one page, one column per map set, success / collision / timeout rates, time to the goal, team efficiency, overlap, collisions, imbalance and coverage over time against the number of robots, plus a summary table.
+* `scripts.analysis.paired_stats`: paired tests over maps (bootstrap CI, Wilcoxon, Holm) between two policies.
+
+Every PDF writes the values it shows to `<pdf name>_data/` next to it.
+
+The pipelines run complete comparisons on the three map sets (`test_small`, `test_large`, `paper`; pass map set names to run only some):
+
+| Pipeline | Compares | Results |
+| --- | --- | --- |
+| `pipelines/compare_sa.sh` | single-agent policy replicated on N robots vs MAPPO vs IPPO, with and without `flip_when_stuck`, plus the single-agent policy fine-tuned alone | `results/compare_sa/` |
+| `pipelines/compare_obst.sh` | the same under strict rules (robots in the obstacle map, the first collision ends the episode), plus independent robots and retrained MAPPO/IPPO | `results/compare_obst/` |
+| `pipelines/compare_scale.sh` | IPPO evaluated with scale factor 2, 3 and 4 of the multi-scale maps | `results/compare_scale/` |
+
+### Notes
+
 * Not implemented in the multi-agent version: stacked observations, action observations, acceleration limits, action delay, the frontier and global total variation rewards (all off by default for mowing), and the exploration task.
 * Truncated episodes (time limit or no new coverage) are treated as terminal in the advantage estimation.
-* PPO uses KL early stopping: within an update, the actor stops training once the approximate KL divergence to the data-collecting policy exceeds 1.5 x `--target_kl` (default 0.02, 0 disables it); the fraction of minibatches with an actor step is logged as `actor_updates`.
-* The per-scale (grouped) convolutions are implemented with a block-diagonal kernel, since grouped convolutions are very slow to differentiate on some XLA backends.
-* On CPU, XLA runs convolutions inside the training loop slowly, so CPU training is only useful for debugging and tests.
+* PPO uses KL early stopping: the actor stops training within an update once the approximate KL divergence exceeds 1.5 x `--target_kl` (default 0.02, 0 disables it); the fraction of minibatches with an actor step is logged as `actor_updates`.
+* Per-scale (grouped) convolutions use a block-diagonal kernel, since grouped convolutions are very slow to differentiate on some XLA backends.
+* On CPU, XLA runs convolutions inside the training loop slowly: CPU training is only useful for debugging and tests.
 
 ## Cite
 

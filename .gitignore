@@ -1,6 +1,17 @@
-*.vscode*
-*__pycache__*
+# Python
+__pycache__/
 *.pyc
-experiments
-.venv*
-.jax_cache
+.pytest_cache/
+
+# Environments and caches
+.venv*/
+.jax_cache/
+.vscode/
+
+# Training runs (checkpoints, logs)
+experiments/
+
+# Run logs and markers of the pipelines
+results/**/*.log
+results/**/DONE
+results/**/FAILED
