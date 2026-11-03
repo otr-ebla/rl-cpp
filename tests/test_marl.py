@@ -212,6 +212,25 @@ def test_vmap_step():
     assert obs['maps'].shape == (E, 2, 32, 32, env.cfg.obs_channels)
 
 
+@pytest.mark.parametrize('comm_range', [0.0, 1.0])
+def test_step_batch_equals_vmap_step(comm_range):
+    """step_batch (reset under lax.cond) gives exactly the results of vmap(step), with and without resets"""
+    env, params = make_env([empty_map(), empty_map(48)], num_agents=2, max_episode_steps=3, comm_range=comm_range)
+    E = 4
+    _, state = jax.vmap(env.reset, in_axes=(0, None))(jax.random.split(jax.random.PRNGKey(0), E), params)
+    # different episode lengths, so that only some environments are reset in a step
+    state = state.replace(t=jnp.arange(E, dtype=jnp.int32) % 3)
+    vstep = jax.jit(jax.vmap(env.step, in_axes=(0, 0, 0, None)))
+    bstep = jax.jit(env.step_batch)
+    for k in range(4):
+        keys = jax.random.split(jax.random.PRNGKey(k), E)
+        actions = jax.random.uniform(jax.random.PRNGKey(10 + k), (E, 2, 1), minval=-1, maxval=1)
+        a, b = vstep(keys, state, actions, params), bstep(keys, state, actions, params)
+        for x, y in zip(jax.tree.leaves(a), jax.tree.leaves(b)):
+            np.testing.assert_array_equal(np.asarray(x), np.asarray(y))
+        state = a[1]
+
+
 def test_canvas_size_for():
     cfg = EnvConfig()
     assert canvas_size_for([128, 320], cfg) == 320

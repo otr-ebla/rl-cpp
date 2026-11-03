@@ -255,7 +255,6 @@ class MAPPO:
     def _rollout(self, runner: RunnerState, env_params):
         cfg = self.cfg
         E = cfg.num_envs
-        env_step = jax.vmap(self.env.step, in_axes=(0, 0, 0, None))
 
         def step(carry, _):
             env_state, obs, key = carry
@@ -264,7 +263,7 @@ class MAPPO:
             action = mean + jnp.exp(log_std) * jax.random.normal(k_act, mean.shape)
             logp = gaussian_log_prob(action, mean, log_std)
             value = self._value(runner.critic.params, obs)
-            next_obs, env_state, reward, done, info = env_step(
+            next_obs, env_state, reward, done, info = self.env.step_batch(
                 jax.random.split(k_env, E), env_state, action, env_params)
             # The maps are stored channels first, the layout XLA picks for the
             # convolutions. Stored channels last, XLA transposes the whole

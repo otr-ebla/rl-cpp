@@ -133,22 +133,30 @@ def avg_pool(x, f):
     return x.reshape(x.shape[:-2] + (S // f, f, S // f, f)).mean(axis=(-3, -1))
 
 
+def avg_pool_hwc(x, f):
+    """Average pooling of the axes (-3, -2) of channels last (..., S, S, C) by an integer factor f"""
+    S, C = x.shape[-2:]
+    return x.reshape(x.shape[:-3] + (S // f, f, S // f, f, C)).mean(axis=(-4, -2))
+
+
 def bilinear(img, u, v, pad_value):
     """
-    Bilinear sampling of img (H, W) at continuous pixel center coordinates
-    (u, v), i.e. pixel (k, l) is at (u, v) = (k, l). Values outside img are
-    pad_value.
+    Bilinear sampling of img (H, W) or channels last (H, W, C) at continuous
+    pixel center coordinates (u, v), i.e. pixel (k, l) is at (u, v) = (k, l).
+    Values outside img are pad_value (scalar, or (C,) per channel).
+    All channels are gathered at once (one gather per corner).
     """
-    H, W = img.shape
+    H, W = img.shape[:2]
+    extra = (1,) * (img.ndim - 2)
     u0 = jnp.floor(u)
     v0 = jnp.floor(v)
-    du = u - u0
-    dv = v - v0
+    du = (u - u0).reshape(u.shape + extra)
+    dv = (v - v0).reshape(v.shape + extra)
     u0 = u0.astype(jnp.int32)
     v0 = v0.astype(jnp.int32)
 
     def g(a, b):
-        valid = (a >= 0) & (a < H) & (b >= 0) & (b < W)
+        valid = ((a >= 0) & (a < H) & (b >= 0) & (b < W)).reshape(a.shape + extra)
         return jnp.where(valid, img[jnp.clip(a, 0, H - 1), jnp.clip(b, 0, W - 1)], pad_value)
 
     return (1 - du) * (1 - dv) * g(u0, v0) + du * (1 - dv) * g(u0 + 1, v0) + \
@@ -222,8 +230,28 @@ class MultiMowerEnv:
         k_step, k_reset, k_obs = jax.random.split(key, 3)
         state, rewards, done, info = self._step_state(k_step, state, actions)
         reset_state = self._reset_state(k_reset, params)
-        state = jax.tree_util.tree_map(lambda r, s: jnp.where(done, r, s), reset_state, state)
+        state = jax.tree.map(lambda r, s: jnp.where(done, r, s), reset_state, state)
         return self._observation(k_obs, state), state, rewards, done, info
+
+    def step_batch(self, keys, state: EnvState, actions, params: EnvParams):
+        """
+        step() of E environments, keys: (E, 2), state and actions with a
+        leading E axis, the same params for all. Same results as
+        jax.vmap(step), but the reset states are only computed in the steps
+        in which an episode ended (lax.cond on the whole batch), while
+        vmap(step) computes them for every environment in every step and
+        selects them with jnp.where. Not jitted: called from jitted code.
+        """
+        keys = jax.vmap(lambda k: jax.random.split(k, 3))(keys)              # E x 3 x 2
+        state, rewards, done, info = jax.vmap(self._step_state)(keys[:, 0], state, actions)
+
+        def reset(state):
+            reset_state = jax.vmap(self._reset_state, in_axes=(0, None))(keys[:, 1], params)
+            return jax.tree.map(
+                lambda r, s: jnp.where(done.reshape(done.shape + (1,) * (s.ndim - 1)), r, s), reset_state, state)
+
+        state = jax.lax.cond(jnp.any(done), reset, lambda s: s, state)
+        return jax.vmap(self._observation)(keys[:, 2], state), state, rewards, done, info
 
     # --------------------------------------------------------- simulation
 
@@ -698,13 +726,12 @@ class MultiMowerEnv:
                             .astype(jnp.float32))
             pads.append(0.0)
 
-        # Pyramids: level n is average pooled by scale_factor ** n
-        pyramids = []
-        for ch in channels:
-            levels = [ch]
-            for _ in range(1, cfg.num_maps):
-                levels.append(avg_pool(levels[-1], cfg.scale_factor))
-            pyramids.append(levels)
+        # Pyramid of the channels (channels last, so that bilinear gathers
+        # all channels at once): level n is average pooled by scale_factor ** n
+        levels = [jnp.stack(channels, axis=-1)]
+        for _ in range(1, cfg.num_maps):
+            levels.append(avg_pool_hwc(levels[-1], cfg.scale_factor))
+        pads = jnp.asarray(pads, dtype=jnp.float32)
 
         # Egocentric sampling grids (noisy pose), up is forward
         noisy_pos = state.pos + cfg.position_noise * jax.random.normal(k_pos, state.pos.shape)
@@ -734,17 +761,16 @@ class MultiMowerEnv:
                 right[None, :, :, None] * r_vec[:, None, None, :])
             u = world[..., 0] / f - 0.5
             v = world[..., 1] / f - 0.5
-            for c, (levels, pad) in enumerate(zip(pyramids, pads)):
-                val = sample(levels[n], u, v, pad)
-                if cfg.frontier_observation and c == 2:
-                    val = (val > 1e-6).astype(jnp.float32)
-                maps.append(val)
+            val = sample(levels[n], u, v, pads)                             # N x H x W x C
+            if cfg.frontier_observation:
+                val = val.at[..., 2].set((val[..., 2] > 1e-6).astype(jnp.float32))
+            maps.append(val)
             if cfg.robot_observation:
                 # pixels that (approximately) intersect another robot
                 d = jnp.linalg.norm(world[:, :, :, None, :] - pos_p[None, None, None, :, :], axis=-1)
                 hit = (d <= cfg.radius_p + f * 0.7072) & other[:, None, None, :]
-                maps.append(jnp.any(hit, axis=-1).astype(jnp.float32))
-        maps = _quantize(jnp.stack(maps, axis=-1))                          # N x H x W x C
+                maps.append(jnp.any(hit, axis=-1).astype(jnp.float32)[..., None])
+        maps = _quantize(jnp.concatenate(maps, axis=-1))                    # N x H x W x C
 
         # Global state for the critic (canvas frame)
         G = cfg.global_size

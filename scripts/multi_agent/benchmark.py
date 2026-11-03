@@ -43,8 +43,8 @@ def benchmark(env_cfg, E, num_steps, skip_update, rng):
     algo = MAPPO(env_cfg, train_cfg)
     runner = algo.init(jax.random.PRNGKey(0), params)
 
-    # Environment only
-    step = jax.jit(jax.vmap(algo.env.step, in_axes=(0, 0, 0, None)))
+    # Environment only (the batched step used by the rollout)
+    step = jax.jit(algo.env.step_batch)
     actions = jnp.zeros((E, env_cfg.num_agents, env_cfg.action_dim))
     keys = jax.random.split(jax.random.PRNGKey(1), E)
     _, dt = timed(step, keys, runner.env_state, actions, params, repeats=10)
