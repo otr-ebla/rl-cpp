@@ -43,7 +43,7 @@ import jax.numpy as jnp
 from flax import struct
 
 from marl.config import EnvConfig
-from marl.maps import MapBank
+from marl.maps import MapBank, pixel_cells
 
 
 @struct.dataclass
@@ -87,6 +87,10 @@ class EnvState:
     covered_by: jnp.ndarray     # (N,) float32, newly covered free pixels attributed to each robot
     ep_return: jnp.ndarray      # (N,) float32, undiscounted return so far
     lidar_dist: jnp.ndarray     # (N, R) float32, latest lidar distances [pixels]
+    free_cells: jnp.ndarray     # (W, W) bool, cells of the workload grid free of obstacles, see MapBank ((0, 0) if off)
+    work: jnp.ndarray           # (W, W) float32, free pixels not yet covered in each cell ((0, 0) if off)
+    owner: jnp.ndarray          # (W, W) int8, robot owning each cell of the workload grid ((0, 0) if off)
+    workload: jnp.ndarray       # (N,) float32, free area not yet covered in each robot's cells [m^2] (0 if off)
 
 
 def total_variation(img, img2):
@@ -184,6 +188,81 @@ def area_resample(x, size, G):
     return sums / cell ** 2
 
 
+_NEIGHBORS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+
+def _relax(dist, owner, free, corners=True):
+    """
+    One sweep of shortest path relaxation on the 8-connected grid: each cell
+    takes the shortest of its own distance and those of its neighbors plus
+    the step (1, or sqrt(2) on the diagonal, with corners only if both cells
+    beside the diagonal are free: no corner cutting through a wall), with
+    the owner of that neighbor. Ties keep the current value (deterministic).
+    """
+    G = dist.shape[0]
+    pad_d = jnp.pad(dist, 1, constant_values=jnp.inf)
+    pad_o = jnp.pad(owner, 1, constant_values=-1)
+    pad_f = jnp.pad(free, 1, constant_values=False)
+    shift = lambda a, di, dj: a[1 + di:1 + di + G, 1 + dj:1 + dj + G]
+    best_d, best_o = dist, owner
+    for di, dj in _NEIGHBORS:
+        cand = shift(pad_d, di, dj) + (1.0 if di == 0 or dj == 0 else 2 ** 0.5)
+        if corners and di != 0 and dj != 0:
+            cand = jnp.where(shift(pad_f, di, 0) & shift(pad_f, 0, dj), cand, jnp.inf)
+        better = cand < best_d
+        best_d = jnp.where(better, cand, best_d)
+        best_o = jnp.where(better, shift(pad_o, di, dj), best_o)
+    return best_d, best_o
+
+
+def geodesic_voronoi(seeds, free, max_sweeps=None, unroll=4):
+    """
+    Geodesic Voronoi partition of a (G, G) grid: shortest paths from the
+    seeds over the free cells (8-connected, see _relax), every cell owned by
+    the seed with the shortest path to it. The relaxation is a wave from the
+    seeds: it runs until nothing changes (as many sweeps as the longest
+    shortest path in cells), in groups of unroll sweeps (fewer loop
+    iterations, faster on GPUs), at most max_sweeps (default G). Cells that
+    are not free (partly covered by an obstacle) get the owner of their best
+    free neighbor, without passing it on. Cells that the wave did not reach
+    (farther than max_sweeps steps, or enclosed) get the closest seed in a
+    straight line, so that every cell has an owner.
+
+    seeds: (N, 2) int32 cell of each seed (also in a cell that is not free),
+           ties between seeds in the same cell go to the lower index
+    free:  (G, G) bool
+    Returns dist (G, G) float32 [cells] (inf: not reached) and owner (G, G) int32.
+    """
+    G = free.shape[0]
+    N = seeds.shape[0]
+    max_sweeps = G if max_sweeps is None else max_sweeps
+    owner = jnp.full((G, G), N, dtype=jnp.int32).at[seeds[:, 0], seeds[:, 1]].min(jnp.arange(N, dtype=jnp.int32))
+    seeded = owner < N
+    owner = jnp.where(seeded, owner, -1)
+    dist = jnp.where(seeded, 0.0, jnp.inf).astype(jnp.float32)
+
+    def cond(carry):
+        return carry[2] & (carry[3] < max_sweeps)
+
+    def body(carry):
+        dist, owner, _, k = carry
+        start = dist
+        for _ in range(unroll):
+            new_d, new_o = _relax(dist, owner, free)
+            dist = jnp.where(free, new_d, dist)
+            owner = jnp.where(free, new_o, owner)
+        return dist, owner, jnp.any(dist < start), k + unroll
+
+    dist, owner, _, _ = jax.lax.while_loop(cond, body, (dist, owner, jnp.ones((), dtype=bool), jnp.zeros((), jnp.int32)))
+    # cells that are not free (partly obstacle) take the owner of their best free neighbor
+    beside_d, beside_o = _relax(dist, owner, free, corners=False)
+    dist, owner = jnp.where(free, dist, beside_d), jnp.where(free, owner, beside_o)
+    # cells not reached: the closest seed in a straight line
+    cells = jnp.stack(jnp.meshgrid(jnp.arange(G), jnp.arange(G), indexing='ij'), axis=-1)       # G x G x 2
+    nearest = jnp.argmin(jnp.sum((cells[:, :, None, :] - seeds[None, None]) ** 2, axis=-1), axis=-1)
+    return dist, jnp.where(owner >= 0, owner, nearest).astype(jnp.int32)
+
+
 def frontier_map(covered, known, edge, dilation):
     """
     Frontier between the covered and the not yet covered free space, see
@@ -241,7 +320,7 @@ class MultiMowerEnv:
     @partial(jax.jit, static_argnums=0)
     def reset(self, key, params: EnvParams):
         k_reset, k_obs = jax.random.split(key)
-        state = self._reset_state(k_reset, params)
+        state = self._update_workload(self._reset_state(k_reset, params))
         return self._observation(k_obs, state), state
 
     @partial(jax.jit, static_argnums=0)
@@ -256,6 +335,7 @@ class MultiMowerEnv:
         state, rewards, done, info = self._step_state(k_step, state, actions)
         reset_state = self._reset_state(k_reset, params)
         state = jax.tree.map(lambda r, s: jnp.where(done, r, s), reset_state, state)
+        state = self._update_workload(state)
         return self._observation(k_obs, state), state, rewards, done, info
 
     def step_batch(self, keys, state: EnvState, actions, params: EnvParams):
@@ -276,6 +356,7 @@ class MultiMowerEnv:
                 lambda r, s: jnp.where(done.reshape(done.shape + (1,) * (s.ndim - 1)), r, s), reset_state, state)
 
         state = jax.lax.cond(jnp.any(done), reset, lambda s: s, state)
+        state = jax.vmap(self._update_workload)(state)
         return jax.vmap(self._observation)(keys[:, 2], state), state, rewards, done, info
 
     # --------------------------------------------------------- simulation
@@ -344,16 +425,54 @@ class MultiMowerEnv:
             stuck_steps=jnp.zeros((N,), dtype=jnp.int32),
             covered_by=jnp.zeros((N,)),
             ep_return=jnp.zeros((N,)),
-            lidar_dist=jnp.zeros((N, cfg.lidar_rays)))
+            lidar_dist=jnp.zeros((N, cfg.lidar_rays)),
+            free_cells=bank.cell_free[idx],
+            work=bank.cell_work[idx],
+            owner=jnp.zeros((cfg.workload_size, cfg.workload_size), dtype=jnp.int8),
+            workload=jnp.zeros((N,)))
 
         # Initial lidar detections and covered discs
         dist, hit_pix, write = self._lidar(pos, heading, state.obstacles, size)
         state = state.replace(known=self._update_known(state.known, hit_pix, write), lidar_dist=dist)
         cov = self._coverage_update(state, pos, initial=True)
-        state = state.replace(overlap=cov['overlap'], coverage_px=cov['team_new'], covered_by=cov['new_share'])
+        state = state.replace(overlap=cov['overlap'], coverage_px=cov['team_new'], covered_by=cov['new_share'],
+                              work=self._update_work(state, cov))
         if cfg.limited_comm:
             state = self._update_beliefs(state, cov, hit_pix, write)
         return state
+
+    def _update_work(self, state: EnvState, cov):
+        """
+        Work per cell of the workload grid after the coverage update cov (see
+        _coverage_update): the newly covered free pixels are removed from the
+        cell of their center (shares of the robots, 1 per pixel)
+        """
+        W = self.cfg.workload_size
+        if W == 0:
+            return state.work
+        ci = pixel_cells(cov['ii'], state.size, W)
+        cj = pixel_cells(cov['jj'], state.size, W)
+        return state.work.at[ci, cj].add(-cov['share'], mode='drop')
+
+    def _update_workload(self, state: EnvState):
+        """
+        Geodesic Voronoi partition of the remaining work (workload_size, see
+        EnvConfig) on the (W, W) grid over the map, from the true state: the
+        cells free of true obstacles are traversable, each robot seeds the
+        cell of its position, and each robot's workload is the work (free
+        pixels not yet covered) of its cells. Computed once per step on the
+        state after the automatic reset (step, step_batch) and in reset.
+        """
+        cfg = self.cfg
+        W = cfg.workload_size
+        if W == 0:
+            return state
+        N = cfg.num_agents
+        cell = state.pos * cfg.pixels_per_meter / state.size.astype(jnp.float32) * W
+        seeds = jnp.clip(jnp.floor(cell).astype(jnp.int32), 0, W - 1)
+        _, owner = geodesic_voronoi(seeds, state.free_cells)
+        workload = jax.ops.segment_sum(state.work.reshape(-1), owner.reshape(-1), num_segments=N)
+        return state.replace(workload=workload * cfg.meters_per_pixel ** 2, owner=owner.astype(jnp.int8))
 
     def _velocities(self, actions):
         cfg = self.cfg
@@ -530,7 +649,8 @@ class MultiMowerEnv:
         # Overlap with earlier coverage
         overlap_sum = jnp.sum(diff * overlap_old, axis=(1, 2)).astype(jnp.float32)
 
-        return dict(overlap=overlap, new_share=new_share, reward_share=reward_share, team_new=team_new,
+        return dict(overlap=overlap, new_share=new_share, share=jnp.where(newly_d, 1 / count, 0),
+                    reward_share=reward_share, team_new=team_new,
                     team_diff=team_diff, any_new=jnp.any(newly), tv_diff=tv_diff,
                     overlap_sum=overlap_sum, diff=diff, ii=II, jj=JJ)
 
@@ -645,6 +765,7 @@ class MultiMowerEnv:
             robot_collisions=state.robot_collisions + robot,
             stuck_steps=stuck_steps,
             covered_by=state.covered_by + cov['new_share'],
+            work=self._update_work(state, cov),
             ep_return=state.ep_return + rewards,
             lidar_dist=lidar_dist,
             connected=self._connectivity(new_pos))

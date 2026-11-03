@@ -36,7 +36,8 @@ def set_poses(env, params, pos, heading, key=0):
     heading = jnp.asarray(heading, dtype=jnp.float32)
     state = state.replace(pos=pos, prev_pos=pos, heading=heading,
                           overlap=jnp.zeros_like(state.overlap), coverage_px=jnp.zeros(()),
-                          belief_overlap=jnp.zeros_like(state.belief_overlap), connected=env._connectivity(pos))
+                          belief_overlap=jnp.zeros_like(state.belief_overlap), connected=env._connectivity(pos),
+                          work=params.bank.cell_work[state.map_idx])
     dist, _, _ = env._lidar(pos, heading, state.obstacles, state.size)
     return state.replace(lidar_dist=dist)
 
@@ -134,6 +135,74 @@ def test_global_crop():
     ref = np.repeat(np.repeat(obstacles, 16, axis=0), 16, axis=1).reshape(16, 40, 16, 40).mean(axis=(1, 3))
     assert np.abs(np.array(obs['global'])[..., 1] / 255 - ref).max() <= 1 / 255
     assert np.array(obs_c['global'])[12:, 12:, 1].min() == 255                  # canvas: outside is blocked
+
+
+def test_geodesic_voronoi_distances():
+    """One seed on a free grid: octile distances (8-connected shortest paths)"""
+    from marl.env import geodesic_voronoi
+    free = jnp.ones((12, 12), dtype=bool)
+    dist, owner = geodesic_voronoi(jnp.array([[3, 5]], dtype=jnp.int32), free)
+    di, dj = np.abs(np.mgrid[:12, :12] - np.array([3, 5])[:, None, None])
+    ref = np.maximum(di, dj) + (np.sqrt(2) - 1) * np.minimum(di, dj)
+    assert np.allclose(np.array(dist), ref, atol=1e-4) and (np.array(owner) == 0).all()
+
+
+def test_geodesic_voronoi_wall():
+    """A cell just behind a wall belongs to the robot that walks there first, not to the closest in a straight line"""
+    from marl.env import geodesic_voronoi
+    free = np.ones((16, 16), dtype=bool)
+    free[:12, 8] = False                                     # wall, door in rows 12-15
+    seeds = jnp.array([[2, 6], [10, 14]], dtype=jnp.int32)
+    dist, owner = geodesic_voronoi(seeds, jnp.asarray(free))
+    owner = np.array(owner)
+    assert owner[2, 10] == 1 and owner[2, 4] == 0            # behind the wall: robot 1, straight line: robot 0
+    # far from the door each side of the wall has its robot (next to the door, robot 1 walks through it first)
+    assert (owner[:12, 9:] == 1).all() and (owner[:9, :8] == 0).all() and owner[11, 7] == 1
+    assert (owner >= 0).all() and np.isfinite(np.array(dist)[free]).all()
+    # no corner cutting: a diagonal wall of single cells is not crossed
+    free = np.ones((8, 8), dtype=bool)
+    free[np.arange(8), 7 - np.arange(8)] = False
+    dist, owner = geodesic_voronoi(jnp.array([[0, 0]], dtype=jnp.int32), jnp.asarray(free))
+    beyond = np.add.outer(np.arange(8), np.arange(8)) > 7
+    assert np.isinf(np.array(dist)[beyond & free]).all()
+    assert (np.array(owner) == 0).all()                      # not reached: the closest seed in a straight line
+    # paths longer than max_sweeps: the cells not reached get the closest seed in a straight line
+    free = np.ones((16, 16), dtype=bool)
+    dist, owner = geodesic_voronoi(jnp.array([[0, 0], [0, 3]], dtype=jnp.int32), jnp.asarray(free), max_sweeps=4)
+    dist, owner = np.array(dist), np.array(owner)
+    assert np.isinf(dist[15, 15]) and owner[15, 15] == 1 and owner[15, 0] == 0
+
+
+def wall_map():
+    """64 pixel map with a wall (columns 30-33) from the top to row 47, door in rows 48-63"""
+    known = np.zeros((64, 64), dtype=bool)
+    known[:48, 30:34] = True
+    return known, np.zeros_like(known)
+
+
+def test_workload():
+    env, params = make_env([wall_map()], num_agents=2, workload_size=16)
+    ppm = env.cfg.pixels_per_meter
+    state = env._update_workload(set_poses(env, params, np.array([[10, 20], [56, 50]]) / ppm, [0.0, 0.0]))
+    owner = np.array(state.owner)
+    assert owner.shape == (16, 16) and owner[2, 10] == 1 and owner[2, 2] == 0   # behind the wall: robot 1
+    # the workloads add up to the free area not yet covered
+    workload = np.array(state.workload)
+    assert np.isclose(workload.sum(), float(state.free_space) / ppm ** 2, rtol=1e-4)
+    assert workload[1] > workload[0] > 0
+    # robot order: the workloads are permuted
+    swapped = env._update_workload(set_poses(env, params, np.array([[56, 50], [10, 20]]) / ppm, [0.0, 0.0]))
+    assert np.allclose(np.array(swapped.workload), workload[::-1], rtol=1e-5)
+    # after steps: the workloads add up to the free area not yet covered, which decreases
+    for k in range(5):
+        _, state, _, _, _ = env.step(jax.random.PRNGKey(k), state, jnp.zeros((2, 1)), params)
+        remaining = (float(state.free_space) - float(state.coverage_px)) / ppm ** 2
+        assert np.isclose(np.array(state.workload).sum(), remaining, rtol=1e-4)
+    assert np.array(state.workload).sum() < workload.sum()
+    # off by default
+    env, params = make_env([wall_map()], num_agents=2)
+    _, state = env.reset(jax.random.PRNGKey(0), params)
+    assert state.owner.shape == (0, 0) and not np.array(state.workload).any()
 
 
 def test_egocentric_orientation():
@@ -251,10 +320,11 @@ def test_vmap_step():
     assert obs['maps'].shape == (E, 2, 32, 32, env.cfg.obs_channels)
 
 
-@pytest.mark.parametrize('comm_range', [0.0, 1.0])
-def test_step_batch_equals_vmap_step(comm_range):
+@pytest.mark.parametrize('comm_range,workload_size', [(0.0, 0), (1.0, 0), (0.0, 16)])
+def test_step_batch_equals_vmap_step(comm_range, workload_size):
     """step_batch (reset under lax.cond) gives exactly the results of vmap(step), with and without resets"""
-    env, params = make_env([empty_map(), empty_map(48)], num_agents=2, max_episode_steps=3, comm_range=comm_range)
+    env, params = make_env([empty_map(), wall_map()], num_agents=2, max_episode_steps=3, comm_range=comm_range,
+                           workload_size=workload_size)
     E = 4
     _, state = jax.vmap(env.reset, in_axes=(0, None))(jax.random.split(jax.random.PRNGKey(0), E), params)
     # different episode lengths, so that only some environments are reset in a step

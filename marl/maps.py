@@ -7,6 +7,7 @@ simulated in parallel. Everything that only depends on the map, i.e. the
 dilated obstacles and the collision map, is precomputed once per map here,
 on the host, instead of at every reset on the GPU.
 """
+import dataclasses
 import glob
 import os
 
@@ -37,6 +38,10 @@ class MapBank:
                 obstacle (obstacles dilated by the robot radius)
     size:       (K,) int32, map size [pixels]
     free_space: (K,) float32, number of free (not dilated) pixels
+    cell_free:  (K, W, W) bool, cells of the workload grid (EnvConfig.workload_size,
+                over the map) that touch no obstacle pixel ((K, 0, 0) if off)
+    cell_work:  (K, W, W) float32, free (not dilated) pixels of each cell, each
+                pixel in the cell of its center, see pixel_cells ((K, 0, 0) if off)
     """
     obstacles: jnp.ndarray
     known: jnp.ndarray
@@ -44,6 +49,8 @@ class MapBank:
     blocked: jnp.ndarray
     size: jnp.ndarray
     free_space: jnp.ndarray
+    cell_free: jnp.ndarray
+    cell_work: jnp.ndarray
 
     @property
     def num_maps(self):
@@ -191,6 +198,30 @@ def random_map(
     return known, unknown, use_floor_plan, use_known or use_unknown
 
 
+def pixel_cells(p, size, W):
+    """
+    Cell of the (W, W) workload grid over a map of size pixels that holds the
+    center of pixel p (integer arithmetic, the same in NumPy and JAX)
+    """
+    return ((2 * p + 1) * W) // (2 * size)
+
+
+def workload_cells(obstacles, dilated, size, W):
+    """
+    cell_free and cell_work of a map, see MapBank. A cell is free when no
+    obstacle pixel overlaps it (also partially), so that thin walls are not
+    crossed by paths on the grid.
+    """
+    edges = np.arange(W + 1) * size / W
+    lo = np.floor(edges[:-1]).astype(int)
+    hi = np.ceil(edges[1:]).astype(int)
+    cell_free = np.array([[not obstacles[lo[a]:hi[a], lo[b]:hi[b]].any() for b in range(W)] for a in range(W)])
+    c = pixel_cells(np.arange(size), size, W)
+    cell_work = np.zeros((W, W), dtype=np.float32)
+    np.add.at(cell_work, (c[:, None], c[None, :]), (~dilated[:size, :size]).astype(np.float32))
+    return cell_free, cell_work
+
+
 def prepare_map(known, unknown, cfg: EnvConfig):
     """
     Places one map on the canvas and precomputes the static maps.
@@ -229,8 +260,14 @@ def prepare_map(known, unknown, cfg: EnvConfig):
     disc = _disc(int(cfg.radius_p))
     blocked = ndimage.binary_dilation(obstacles, structure=disc) | outside
 
+    W = cfg.workload_size
+    if W > 0:
+        cell_free, cell_work = workload_cells(obstacles, dilated, size, W)
+    else:
+        cell_free, cell_work = np.zeros((0, 0), dtype=bool), np.zeros((0, 0), dtype=np.float32)
+
     return dict(obstacles=obstacles, known=known_init, dilated=dilated,
-                blocked=blocked, size=size, free_space=free_space)
+                blocked=blocked, size=size, free_space=free_space, cell_free=cell_free, cell_work=cell_work)
 
 
 def build_bank(maps, cfg: EnvConfig):
@@ -245,12 +282,13 @@ def build_bank(maps, cfg: EnvConfig):
         dilated=jnp.asarray(np.stack([p['dilated'] for p in prepared])),
         blocked=jnp.asarray(np.stack([p['blocked'] for p in prepared])),
         size=jnp.asarray([p['size'] for p in prepared], dtype=jnp.int32),
-        free_space=jnp.asarray([p['free_space'] for p in prepared], dtype=jnp.float32))
+        free_space=jnp.asarray([p['free_space'] for p in prepared], dtype=jnp.float32),
+        cell_free=jnp.asarray(np.stack([p['cell_free'] for p in prepared])),
+        cell_work=jnp.asarray(np.stack([p['cell_work'] for p in prepared])))
 
 
 def concat_banks(banks):
-    return MapBank(*[jnp.concatenate([getattr(b, f) for b in banks]) for f in
-                     ['obstacles', 'known', 'dilated', 'blocked', 'size', 'free_space']])
+    return MapBank(*[jnp.concatenate([getattr(b, f.name) for b in banks]) for f in dataclasses.fields(MapBank)])
 
 
 def canvas_size_for(map_sizes, cfg: EnvConfig):

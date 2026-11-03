@@ -76,6 +76,15 @@ class EnvConfig:
         canvas size, and the map side is added to the episode progress (as
         meters / 10), since the maps of all sizes look the same. Needs
         neighbor_observation
+    :param workload_size: Size of the grid (over the map) of the geodesic
+        Voronoi partition of the remaining work (0: off): every cell is
+        assigned to the robot with the shortest path to it around the true
+        obstacles (the owner), and the workload of a robot is the free area
+        not yet covered in its cells [m^2]. Computed every step from the true
+        state (centralized training), for the rewards and the critic. The
+        cells must be smaller than the doors (two free cells), and the
+        shortest paths are followed for at most workload_size steps: the
+        farther cells get the closest robot in a straight line
     :param max_episode_steps: Maximum episode length
     :param max_non_new_steps: Maximum steps in a row in which no robot covered new ground
     :param flip_when_stuck: Whether to turn a robot by 180 degrees when it collided
@@ -134,6 +143,7 @@ class EnvConfig:
     obstacle_dilation: int = 9
     global_size: int = 64
     global_crop: bool = False
+    workload_size: int = 0
     max_episode_steps: int = 2000
     max_non_new_steps: int = 1000
     flip_when_stuck: bool = False
@@ -167,6 +177,7 @@ class EnvConfig:
         assert 0 <= self.team_reward_weight <= 1
         assert self.comm_range >= 0
         assert not self.global_crop or self.neighbor_observation, 'global_crop needs neighbor_observation'
+        assert self.workload_size >= 0
 
     # Derived quantities
 

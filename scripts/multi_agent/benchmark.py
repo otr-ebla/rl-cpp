@@ -73,10 +73,11 @@ def main():
     parser.add_argument('--num_agents', default=4, type=int)
     parser.add_argument('--num_steps', default=128, type=int)
     parser.add_argument('--skip_update', action='store_true', help='only benchmark the environment')
+    parser.add_argument('--workload_size', default=0, type=int, help='grid of the workload partition (0: off)')
     args = parser.parse_args()
 
     print('JAX', jax.__version__, 'devices:', jax.devices(), flush=True)
-    env_cfg = EnvConfig(num_agents=args.num_agents)
+    env_cfg = EnvConfig(num_agents=args.num_agents, workload_size=args.workload_size)
     rng = np.random.default_rng(0)
 
     print(f'GPU memory available to JAX: {memory_gb("bytes_limit"):.1f} GB', flush=True)
