@@ -148,12 +148,12 @@ def main():
 
     @jax.jit
     def rollout(key):
-        k_reset, k_steps = jax.random.split(key)
+        k_reset, k_steps, k_obs = jax.random.split(key, 3)  # k_reset, k_steps as split(key, 2)
         obs, state = env.reset(k_reset, env_params)
         if args.precover:
             overlap = jnp.maximum(state.overlap, jnp.asarray(precover, dtype=state.overlap.dtype))
             state = state.replace(overlap=overlap, coverage_px=jnp.sum((overlap > 0) & ~state.dilated).astype(jnp.float32))
-            obs = env._observation(k_reset, state)
+            obs = env._observation(k_obs, state)
 
         def body(carry, k):
             obs, state, finished = carry
