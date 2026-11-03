@@ -165,6 +165,25 @@ def bilinear(img, u, v, pad_value):
            (1 - du) * dv * g(u0, v0 + 1) + du * dv * g(u0 + 1, v0 + 1)
 
 
+def area_resample(x, size, G):
+    """
+    Area average of the top-left (size, size) region of the channels last
+    image x (S, S, C) on a (G, G) grid of equal cells, for a traced size
+    (cells of size / G pixels, not necessarily an integer). Exact for the
+    piecewise constant image: its integral image is bilinear within each
+    pixel, so the bilinear interpolation of the integral image at the cell
+    corners gives the exact sums over the cells.
+    """
+    x = x.astype(jnp.float32)
+    integral = jnp.pad(jnp.cumsum(jnp.cumsum(x, axis=0), axis=1), ((1, 0), (1, 0), (0, 0)))  # sum of x[:a, :b]
+    cell = size.astype(jnp.float32) / G
+    edges = jnp.arange(G + 1, dtype=jnp.float32) * cell
+    u = jnp.broadcast_to(edges[:, None], (G + 1, G + 1))
+    corners = bilinear(integral, u, u.T, 0.0)                                # (G + 1, G + 1, C)
+    sums = corners[1:, 1:] - corners[:-1, 1:] - corners[1:, :-1] + corners[:-1, :-1]
+    return sums / cell ** 2
+
+
 def frontier_map(covered, known, edge, dilation):
     """
     Frontier between the covered and the not yet covered free space, see
@@ -194,10 +213,12 @@ class MultiMowerEnv:
               The robot channel only with robot_observation (legacy)
       lidar:  (N, lidar_rays) float32, normalized lidar distances
       global: (G, G, C) uint8, global maps for the critic: coverage, true
-              obstacles, known obstacles, robots (canvas frame), the robot
-              channel only without neighbor_observation
+              obstacles, known obstacles, robots (canvas frame, or map frame
+              with global_crop), the robot channel only without
+              neighbor_observation
       agent:  (N, 6) float32, per robot state for the critic: position / canvas
-              size, cos/sin heading, team coverage, elapsed time
+              size (map size with global_crop), cos/sin heading, team
+              coverage, elapsed time
     With neighbor_observation, the other robots as sets (row i: robot j as
     seen by robot i, see _relative_poses), whose size is the number of robots:
       others:      (N, N, F) float32, relative poses from the robot's own
@@ -205,9 +226,11 @@ class MultiMowerEnv:
       others_mask: (N, N) bool, robot j is observed by robot i: j != i and
                    (limited communication) i and j are connected
       team:        (N, N, F + 2) float32, true relative poses and absolute
-                   position / canvas size, for the critic (all j != i)
-      progress:    (2,) float32, episode progress for the critic: goal
-                   coverage, steps without new coverage / max_non_new_steps
+                   position / canvas size (map size with global_crop), for
+                   the critic (all j != i)
+      progress:    (P,) float32, episode progress for the critic: goal
+                   coverage, steps without new coverage / max_non_new_steps,
+                   (global_crop) map side [m] / 10
     """
 
     def __init__(self, cfg: EnvConfig):
@@ -774,23 +797,28 @@ class MultiMowerEnv:
                 maps.append(jnp.any(hit, axis=-1).astype(jnp.float32)[..., None])
         maps = _quantize(jnp.concatenate(maps, axis=-1))                    # N x H x W x C
 
-        # Global state for the critic (canvas frame)
+        # Global state for the critic: canvas frame, or (global_crop) map frame
         G = cfg.global_size
-        g = S // G
-        global_maps = [
-            avg_pool(coverage, g),
-            avg_pool((state.obstacles | outside).astype(jnp.float32), g),
-            avg_pool(known, g)]
+        if cfg.global_crop:
+            frame = state.size.astype(jnp.float32)
+            pooled = area_resample(jnp.stack([coverage, state.obstacles, known], axis=-1), state.size, G)
+            global_maps = [pooled[..., c] for c in range(3)]
+        else:
+            frame = S
+            global_maps = [
+                avg_pool(coverage, S // G),
+                avg_pool((state.obstacles | outside).astype(jnp.float32), S // G),
+                avg_pool(known, S // G)]
         if not cfg.neighbor_observation:
-            centers = (jnp.arange(G, dtype=jnp.float32) + 0.5) * g
+            centers = (jnp.arange(G, dtype=jnp.float32) + 0.5) * (S // G)
             d = jnp.sqrt((centers[:, None, None] - pos_p[None, None, :, 0]) ** 2 +
                          (centers[None, :, None] - pos_p[None, None, :, 1]) ** 2)    # G x G x N
-            global_maps.append(jnp.any(d <= cfg.radius_p + g * 0.7072, axis=-1).astype(jnp.float32))
+            global_maps.append(jnp.any(d <= cfg.radius_p + (S // G) * 0.7072, axis=-1).astype(jnp.float32))
         global_maps = _quantize(jnp.stack(global_maps, axis=-1))
 
         coverage_frac = state.coverage_px / state.free_space
         agent = jnp.concatenate([
-            pos_p / S,
+            pos_p / frame,
             jnp.cos(state.heading)[:, None],
             jnp.sin(state.heading)[:, None],
             jnp.full((N, 1), coverage_frac),
@@ -803,8 +831,10 @@ class MultiMowerEnv:
             obs['others'] = self._relative_poses(npos_p, noisy_heading, pos_p, state.heading)
             obs['others_mask'] = other
             team = self._relative_poses(pos_p, state.heading, pos_p, state.heading)
-            team_pos = jnp.broadcast_to((pos_p / S)[None], (N, N, 2))
+            team_pos = jnp.broadcast_to((pos_p / frame)[None], (N, N, 2))
             obs['team'] = jnp.concatenate([team, team_pos], axis=-1)
-            obs['progress'] = jnp.stack([state.goal_coverage,
-                                         state.non_new_steps / cfg.max_non_new_steps]).astype(jnp.float32)
+            progress = [state.goal_coverage, state.non_new_steps / cfg.max_non_new_steps]
+            if cfg.global_crop:
+                progress.append(state.size * cfg.meters_per_pixel / 10)
+            obs['progress'] = jnp.stack(progress).astype(jnp.float32)
         return obs

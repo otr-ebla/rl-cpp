@@ -97,6 +97,45 @@ def test_reset():
         assert float(state.coverage_px) > 0
 
 
+@pytest.mark.parametrize('size,G', [(64, 16), (48, 16), (37, 8), (20, 16)])
+def test_area_resample(size, G):
+    """Exact area average of the map on G x G cells, also for cells that are not whole pixels"""
+    from marl.env import area_resample, avg_pool_hwc
+    rng = np.random.default_rng(size)
+    x = rng.uniform(size=(64, 64, 2)).astype(np.float32)
+    out = np.array(area_resample(jnp.asarray(x), jnp.int32(size), G))
+    # reference: upsample by G (each pixel G x G), then blocks of size x size
+    up = np.repeat(np.repeat(x[:size, :size], G, axis=0), G, axis=1)
+    ref = up.reshape(G, size, G, size, 2).mean(axis=(1, 3))
+    assert np.allclose(out, ref, atol=1e-4)
+    if size == 64:
+        assert np.allclose(out, np.array(avg_pool_hwc(jnp.asarray(x), 64 // G)), atol=1e-5)
+
+
+def test_global_crop():
+    """The global maps cover only the map, positions relative to the map size, map side in the progress"""
+    rng = np.random.default_rng(0)
+    cfg = EnvConfig(**SMALL)
+    maps = [random_map(rng, cfg, min_size_p=40, max_size_p=40)[:2]]
+    canvas, params = make_env(maps, num_agents=2)
+    crop, _ = make_env(maps, num_agents=2, global_crop=True)
+    assert crop.cfg.progress_features == 3
+    obs_c, state = canvas.reset(jax.random.PRNGKey(0), params)
+    obs, _ = crop.reset(jax.random.PRNGKey(0), params)
+    for k in ('maps', 'lidar', 'others', 'others_mask'):
+        assert np.array_equal(np.array(obs[k]), np.array(obs_c[k])), k
+    pos_p = np.array(state.pos) * cfg.pixels_per_meter
+    assert np.allclose(np.array(obs['agent'])[:, :2], pos_p / 40, atol=1e-5)
+    assert np.allclose(np.array(obs_c['agent'])[:, :2], pos_p / 64, atol=1e-5)
+    assert np.allclose(np.array(obs['team'])[0, :, -2:], pos_p / 40, atol=1e-5)
+    assert np.allclose(np.array(obs['progress'])[-1], 40 * cfg.meters_per_pixel / 10)
+    # obstacle channel: the true obstacles of the map only, no cells outside of it
+    obstacles = np.array(state.obstacles)[:40, :40].astype(np.float32)[..., None]
+    ref = np.repeat(np.repeat(obstacles, 16, axis=0), 16, axis=1).reshape(16, 40, 16, 40).mean(axis=(1, 3))
+    assert np.abs(np.array(obs['global'])[..., 1] / 255 - ref).max() <= 1 / 255
+    assert np.array(obs_c['global'])[12:, 12:, 1].min() == 255                  # canvas: outside is blocked
+
+
 def test_egocentric_orientation():
     """Up in the observation is forward, columns increase to the right of the robot"""
     known, unknown = empty_map()
@@ -250,13 +289,14 @@ def test_curriculum():
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize('algo,critic_state,comm_range', [
-    ('mappo', 'global', 0), ('mappo', 'agent_specific', 0), ('ippo', 'global', 0), ('mappo', 'global', 1.0)])
-def test_mappo_update(algo, critic_state, comm_range):
+@pytest.mark.parametrize('algo,critic_state,comm_range,gather', [
+    ('mappo', 'global', 0, False), ('mappo', 'agent_specific', 0, False), ('ippo', 'global', 0, False),
+    ('mappo', 'global', 1.0, False), ('mappo', 'global', 0, True), ('mappo', 'agent_specific', 0, True)])
+def test_mappo_update(algo, critic_state, comm_range, gather):
     from marl.mappo import MAPPO
-    env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8, comm_range=comm_range)
+    env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8, comm_range=comm_range, global_crop=gather)
     train_cfg = TrainConfig(algo=algo, critic_state=critic_state, num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, update_epochs=2,
-                            hidden_dims=32)
+                            hidden_dims=32, critic_gather=gather)
     bank = build_bank([empty_map(), empty_map(48)], env_cfg)
     params = EnvParams(bank=bank, map_logits=jnp.zeros(2), goal_coverage=jnp.float32(0.9))
     algo = MAPPO(env_cfg, train_cfg)
@@ -265,6 +305,7 @@ def test_mappo_update(algo, critic_state, comm_range):
     runner, metrics, infos = algo.update(runner, params)
     for k, v in metrics.items():
         assert np.isfinite(float(v)), k
+    assert float(metrics['explained_variance']) <= 1
     assert infos['done'].shape == (8, 2) and np.array(infos['done']).sum() == 2
     changed = jax.tree_util.tree_map(lambda a, b: not np.allclose(a, np.array(b)), before, runner.actor.params)
     assert any(jax.tree_util.tree_leaves(changed))
@@ -338,16 +379,18 @@ def test_relative_poses():
     assert (others[0, 1, 2:-2] > 0).all() and (np.diff(others[0, 1, 2:-2]) < 0).all()
 
 
-@pytest.mark.parametrize('algo,critic_state', [('mappo', 'global'), ('mappo', 'agent_specific'), ('ippo', 'global')])
-def test_networks_agnostic_to_number_of_robots(algo, critic_state):
+@pytest.mark.parametrize('algo,critic_state,gather', [
+    ('mappo', 'global', False), ('mappo', 'agent_specific', False), ('ippo', 'global', False),
+    ('mappo', 'global', True), ('mappo', 'agent_specific', True)])
+def test_networks_agnostic_to_number_of_robots(algo, critic_state, gather):
     """The same parameters work for any number of robots, invariant to the order of the robots"""
     from marl.mappo import actor_apply, critic_value, init_params, make_networks
-    train_cfg = TrainConfig(algo=algo, critic_state=critic_state, hidden_dims=32, neighbor_dims=16)
+    train_cfg = TrainConfig(algo=algo, critic_state=critic_state, hidden_dims=32, neighbor_dims=16, critic_gather=gather)
     rng = np.random.default_rng(0)
     params = None
     for N in (1, 2, 5):
         maps = [random_map(rng, EnvConfig(**SMALL), min_size_p=64, max_size_p=64)[:2]]
-        env, env_params = make_env(maps, num_agents=N, robot_separation=0.3)
+        env, env_params = make_env(maps, num_agents=N, robot_separation=0.3, global_crop=gather)
         actor, critic = make_networks(env.cfg, train_cfg)
         if params is None:
             params = init_params(env.cfg, actor, critic, jax.random.PRNGKey(0))

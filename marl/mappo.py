@@ -127,9 +127,10 @@ def make_networks(env_cfg: EnvConfig, train_cfg: TrainConfig):
         critic = LocalCritic(env_cfg.num_maps, train_cfg.hidden_dims, train_cfg.grouped_convs, **pose)
     elif train_cfg.critic_state == 'global':
         assert env_cfg.neighbor_observation, 'the global critic needs neighbor_observation'
-        critic = GlobalCritic(train_cfg.hidden_dims, **pose)
+        critic = GlobalCritic(train_cfg.hidden_dims, **pose, gather=train_cfg.critic_gather)
     else:
-        critic = Critic(env_cfg.num_maps, train_cfg.hidden_dims, train_cfg.grouped_convs, **pose)
+        critic = Critic(env_cfg.num_maps, train_cfg.hidden_dims, train_cfg.grouped_convs, **pose,
+                        gather=train_cfg.critic_gather)
     return actor, critic
 
 
@@ -353,6 +354,8 @@ class MAPPO:
 
         # Advantages and value targets
         advantages, targets = self._gae(traj, last_value, runner.value_norm)
+        # explained variance of the value targets by the values of the rollout
+        explained_variance = 1 - advantages.var() / (targets.var() + 1e-8)
         value_norm = runner.value_norm.update(targets) if cfg.use_value_norm else runner.value_norm
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
@@ -413,6 +416,7 @@ class MAPPO:
                 actor = self._adapt_actor_lr(actor, final_kl)
             metrics['actor_lr'] = self.actor_lr(actor)
         metrics['reward'] = traj.reward.mean()
+        metrics['explained_variance'] = explained_variance
         metrics['value_mean'], metrics['value_std'] = value_norm.stats()
 
         runner = runner._replace(actor=actor, critic=critic, value_norm=value_norm, key=key)

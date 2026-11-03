@@ -145,14 +145,45 @@ def local_encoding(m, maps, lidar, others, others_mask):
     return jnp.concatenate([x, n], axis=-1)
 
 
-def global_maps_encoding(m, global_maps):
-    """(B, hidden_dims) features of the global maps (B, G, G, C), see local_encoding"""
+def sample_features(fmap, pos):
+    """
+    Bilinear sampling of feature maps fmap (B, H, W, C) at positions pos
+    (B, N, 2) relative to the extent of the maps ([0, 1], first and second
+    axis), clamped to the border. Returns (B, N, C).
+    """
+    B, H, W = fmap.shape[:3]
+
+    def axis(p, size):
+        x = jnp.clip(p * size - 0.5, 0, size - 1)
+        x0 = jnp.clip(jnp.floor(x), 0, max(size - 2, 0)).astype(jnp.int32)
+        x1 = jnp.minimum(x0 + 1, size - 1)
+        return x0, x1, (x - x0)[..., None]
+
+    i0, i1, di = axis(pos[..., 0], H)
+    j0, j1, dj = axis(pos[..., 1], W)
+    b = jnp.arange(B)[:, None]
+    return (1 - di) * (1 - dj) * fmap[b, i0, j0] + di * (1 - dj) * fmap[b, i1, j0] + \
+           (1 - di) * dj * fmap[b, i0, j1] + di * dj * fmap[b, i1, j1]
+
+
+def global_maps_encoding(m, global_maps, positions=None):
+    """
+    (B, hidden_dims) features of the global maps (B, G, G, C), see local_encoding.
+    With positions (B, N, 2) of the robots relative to the extent of the
+    global maps, also returns (B, N, F) features of the global maps at each
+    robot: the feature maps of the last two convolutions sampled at its
+    position (TrainConfig.critic_gather).
+    """
     g = global_maps.astype(jnp.float32) / 255
+    feature_maps = []
     for features, kernel in zip(m.global_convs, [(4, 4), (4, 4), (3, 3)]):
         g = nn.relu(nn.Conv(features, kernel, strides=2, padding='SAME',
                             kernel_init=nn.initializers.orthogonal(np.sqrt(2)))(g))
-    g = g.reshape(g.shape[0], -1)
-    return nn.relu(_dense(m.hidden_dims)(g))
+        feature_maps.append(g)
+    g = nn.relu(_dense(m.hidden_dims)(g.reshape(g.shape[0], -1)))
+    if positions is None:
+        return g
+    return g, jnp.concatenate([sample_features(f, positions) for f in feature_maps[-2:]], axis=-1)
 
 
 class Actor(nn.Module):
@@ -213,7 +244,8 @@ class Critic(nn.Module):
     The global maps are encoded once per environment and the features are
     shared by its robots, the robot specific part comes from the robot's own
     observation and state. With team, all other robots are encoded with
-    self-attention from the point of view of each robot.
+    self-attention from the point of view of each robot. With gather, the
+    features of the global maps at each robot's position are added.
     """
     num_maps: int
     hidden_dims: int = 256
@@ -222,6 +254,7 @@ class Critic(nn.Module):
     neighbor_dims: int = 64
     neighbor_layers: int = 2
     neighbor_heads: int = 4
+    gather: bool = False
 
     @nn.compact
     def __call__(self, maps, lidar, global_maps, agent, others=None, others_mask=None, team=None, progress=None):
@@ -232,7 +265,11 @@ class Critic(nn.Module):
         if team is not None:
             team_mask = jnp.broadcast_to(~jnp.eye(N, dtype=bool), (B, N, N))
             parts.append(PoseEncoder(self.neighbor_dims, self.neighbor_layers, self.neighbor_heads)(team, team_mask))
-        g = global_maps_encoding(self, global_maps)
+        if self.gather:
+            g, at_robot = global_maps_encoding(self, global_maps, agent[..., :2])
+            parts.append(at_robot)
+        else:
+            g = global_maps_encoding(self, global_maps)
         parts += [jnp.broadcast_to(g[:, None, :], (B, N, g.shape[-1])), agent]
         if progress is not None:
             parts.append(jnp.broadcast_to(progress[:, None, :], (B, N, progress.shape[-1])))
@@ -247,9 +284,11 @@ class GlobalCritic(nn.Module):
     Centralized value function V(s, i) for each robot i of an environment, on
     the global state only (TrainConfig.critic_state 'global'), without the
     robots' own observations. The robot i is identified by its pose in the
-    global state: the poses of all robots (canvas frame) are related by
-    self-attention, one output per robot, which is combined with the global
-    maps and the episode progress. Nothing depends on the number of robots.
+    global state: the poses of all robots (frame of the global maps) are
+    related by self-attention, one output per robot, which is combined with
+    the global maps and the episode progress, and (gather) with the features
+    of the global maps at the robot's position. Nothing depends on the
+    number of robots.
 
     Inputs (one row per environment, all N robots together):
       global_maps: (B, G, G, C) global maps of the environment
@@ -263,6 +302,7 @@ class GlobalCritic(nn.Module):
     neighbor_dims: int = 64
     neighbor_layers: int = 2
     neighbor_heads: int = 4
+    gather: bool = False
 
     @nn.compact
     def __call__(self, global_maps, agent, progress):
@@ -270,7 +310,11 @@ class GlobalCritic(nn.Module):
         poses, scalars = agent[..., :4], agent[:, 0, 4:]                   # coverage and time: same for all robots
         robots = PoseEncoder(self.neighbor_dims, self.neighbor_layers, self.neighbor_heads, ego=False)(
             poses, jnp.ones((B, N), dtype=bool))
-        g = global_maps_encoding(self, global_maps)
+        if self.gather:
+            g, at_robot = global_maps_encoding(self, global_maps, poses[..., :2])
+            robots = jnp.concatenate([robots, at_robot], axis=-1)
+        else:
+            g = global_maps_encoding(self, global_maps)
         context = jnp.concatenate([g, scalars, progress], axis=-1)
         x = jnp.concatenate([robots, jnp.broadcast_to(context[:, None, :], (B, N, context.shape[-1]))], axis=-1)
         x = nn.relu(_dense(self.hidden_dims)(x))

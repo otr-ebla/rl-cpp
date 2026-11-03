@@ -15,6 +15,16 @@
 #                robots in the obstacle map), the fair comparison with sa_indep
 #   ippo_obst    IPPO with robot_lidar_obstacles
 #
+# Centralized critic variants (MAPPO, only the critic changes):
+#   mappo_rerun        no change: the same run with the current code, which
+#                      logs the explained variance of the critic (reference)
+#   mappo_agent        agent-specific critic: global state plus the robot's
+#                      own observation (critic_state agent_specific)
+#   mappo_crop         global maps cropped to the map (global_crop)
+#   mappo_gather       global_crop and the global features at each robot's
+#                      position (critic_gather)
+#   mappo_agent_gather mappo_gather with the agent-specific critic
+#
 # A checkpoint whose critic does not match the configuration (the centralized
 # critic of the initial checkpoint for IPPO) only initializes the actor.
 # Output in experiments/<recipe>; further arguments go to
@@ -25,14 +35,19 @@ source "$(dirname "$0")/common.sh"
 MAPPO_RUN=${MAPPO_RUN:-experiments/mappo_sb3_v2}
 INIT=${INIT:-experiments/sb3_init/checkpoint}
 
-RECIPE=${1:?usage: $0 ippo_sb3_v2|sa_indep|mappo_obst|ippo_obst [train options]}
+RECIPE=${1:?usage: $0 <recipe> [train options], recipes at the top of $0}
 shift
 case $RECIPE in
   ippo_sb3_v2) ARGS=(--algo ippo) ;;
   sa_indep)    ARGS=(--algo ippo --no_communication --robot_lidar_obstacles --team_reward_weight 0) ;;
   mappo_obst)  ARGS=(--algo mappo --robot_lidar_obstacles) ;;
   ippo_obst)   ARGS=(--algo ippo --robot_lidar_obstacles) ;;
-  *) echo "unknown recipe $RECIPE (ippo_sb3_v2, sa_indep, mappo_obst or ippo_obst)"; exit 1 ;;
+  mappo_rerun)        ARGS=(--algo mappo) ;;
+  mappo_agent)        ARGS=(--algo mappo --critic_state agent_specific) ;;
+  mappo_crop)         ARGS=(--algo mappo --global_crop) ;;
+  mappo_gather)       ARGS=(--algo mappo --global_crop --critic_gather) ;;
+  mappo_agent_gather) ARGS=(--algo mappo --critic_state agent_specific --global_crop --critic_gather) ;;
+  *) echo "unknown recipe $RECIPE (see the comments at the top of $0)"; exit 1 ;;
 esac
 OUT=${OUT:-experiments/$RECIPE}
 

@@ -66,6 +66,16 @@ class EnvConfig:
         gives the metrics
     :param obstacle_dilation: Dilation kernel size around obstacles (metrics, frontier)
     :param global_size: Size of the global maps given to the centralized critic
+    :param global_crop: Whether the global maps of the critic cover only the
+        map (exact area average of the map on global_size x global_size
+        cells, any map size) instead of the whole canvas (average pooling,
+        the map in the top-left corner). A small map then gets a finer grid
+        (a 4.8 m map: 7.5 cm instead of 19 cm cells on the 320 pixel canvas)
+        and no cells outside of it. The positions of the critic's inputs
+        (agent, team) are then relative to the map size instead of the
+        canvas size, and the map side is added to the episode progress (as
+        meters / 10), since the maps of all sizes look the same. Needs
+        neighbor_observation
     :param max_episode_steps: Maximum episode length
     :param max_non_new_steps: Maximum steps in a row in which no robot covered new ground
     :param flip_when_stuck: Whether to turn a robot by 180 degrees when it collided
@@ -123,6 +133,7 @@ class EnvConfig:
     no_communication: bool = False
     obstacle_dilation: int = 9
     global_size: int = 64
+    global_crop: bool = False
     max_episode_steps: int = 2000
     max_non_new_steps: int = 1000
     flip_when_stuck: bool = False
@@ -155,6 +166,7 @@ class EnvConfig:
         assert self.obstacle_dilation % 2 == 1
         assert 0 <= self.team_reward_weight <= 1
         assert self.comm_range >= 0
+        assert not self.global_crop or self.neighbor_observation, 'global_crop needs neighbor_observation'
 
     # Derived quantities
 
@@ -208,8 +220,8 @@ class EnvConfig:
 
     @property
     def progress_features(self):
-        # goal coverage, steps without new coverage / max_non_new_steps
-        return 2
+        # goal coverage, steps without new coverage / max_non_new_steps, (global_crop) map side
+        return 2 + int(self.global_crop)
 
     @property
     def team_features(self):
@@ -280,6 +292,12 @@ class TrainConfig:
     the same budget as a run that was stopped before total_steps.
     neighbor_dims, neighbor_layers, neighbor_heads: width, number of
     transformer blocks and attention heads of marl.networks.PoseEncoder.
+    critic_gather: the centralized critic also samples (bilinearly) the
+    feature maps of its global maps encoder at each robot's position, so
+    that each V(s, i) gets features of the global maps around robot i (the
+    last two convolutions, receptive fields of 10 and 18 global cells:
+    1.9 and 3.4 m on the 320 pixel canvas), instead of relating the robot's pose to the flattened global
+    features by itself (see marl.networks.global_maps_encoding).
     """
     algo: str = 'mappo'
     critic_state: str = 'global'
@@ -310,6 +328,7 @@ class TrainConfig:
     neighbor_dims: int = 64
     neighbor_layers: int = 2
     neighbor_heads: int = 4
+    critic_gather: bool = False
     grouped_convs: bool = True
     init_log_std: float = -0.5
     squash_mean: bool = True
