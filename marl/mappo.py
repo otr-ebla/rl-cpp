@@ -367,17 +367,30 @@ class MAPPO:
         def minibatch_step(carry, idx):
             actor, critic, stop, i = carry
             batch = {k: jnp.take(x, idx, axis=0) for k, x in data.items()}
-            actor_grads, actor_metrics = jax.grad(self._actor_loss, has_aux=True)(actor.params, batch)
-            critic_grads, critic_metrics = jax.grad(self._critic_loss, has_aux=True)(critic.params, value_norm, batch)
+
             # KL early stopping: once the policy moved too far from the one
             # that collected the data, skip the remaining actor updates of
             # this iteration (the critic keeps training). The KL of the first
             # minibatch is measured before any update, i.e. it is only
             # numerical noise, and must not freeze the actor.
-            if cfg.target_kl > 0:
-                stop = stop | ((i > 0) & (actor_metrics['approx_kl'] > 1.5 * cfg.target_kl))
-            new_actor = actor.apply_gradients(grads=actor_grads)
-            actor = jax.tree_util.tree_map(lambda old, new: jnp.where(stop, old, new), actor, new_actor)
+            # Once the actor is frozen (or with train_actor=False), only its
+            # forward pass runs for the metrics: lax.cond (outside of any
+            # vmap, a real branch) skips the backward pass and the optimizer.
+            def frozen_actor(actor):
+                _, actor_metrics = self._actor_loss(actor.params, batch)
+                return actor, actor_metrics, jnp.ones((), dtype=bool)
+
+            def train_actor_step(actor):
+                actor_grads, actor_metrics = jax.grad(self._actor_loss, has_aux=True)(actor.params, batch)
+                stop_now = jnp.zeros((), dtype=bool)
+                if cfg.target_kl > 0:
+                    stop_now = (i > 0) & (actor_metrics['approx_kl'] > 1.5 * cfg.target_kl)
+                new_actor = actor.apply_gradients(grads=actor_grads)
+                actor = jax.tree.map(lambda old, new: jnp.where(stop_now, old, new), actor, new_actor)
+                return actor, actor_metrics, stop_now
+
+            actor, actor_metrics, stop = jax.lax.cond(stop, frozen_actor, train_actor_step, actor)
+            critic_grads, critic_metrics = jax.grad(self._critic_loss, has_aux=True)(critic.params, value_norm, batch)
             critic = critic.apply_gradients(grads=critic_grads)
             metrics = {**actor_metrics, **critic_metrics, 'actor_updates': 1.0 - stop.astype(jnp.float32)}
             return (actor, critic, stop, i + 1), metrics
