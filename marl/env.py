@@ -17,8 +17,10 @@ belief. The true global maps are still kept for the rewards, the metrics and
 the global state of the centralized critic (centralized training).
 
 The environment is a set of pure functions on an EnvState, for one
-environment. Use jax.vmap to simulate many environments in parallel, see
-marl.mappo. Episodes are reset automatically in step().
+environment. Use jax.vmap to simulate many environments in parallel, or
+step_batch (used by marl.mappo), which only computes the reset states in the
+steps in which an episode ended. Episodes are reset automatically in step()
+and step_batch().
 
 Coordinates: positions are in meters, (x, y) = (first, second) array index of
 the maps, pixel (i, j) covers [i, i+1) x [j, j+1) in pixel units, and the

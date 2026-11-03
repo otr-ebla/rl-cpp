@@ -406,7 +406,7 @@ class MAPPO:
         # KL of the last minibatch: after early stopping the actor is frozen,
         # so it is the KL of the whole iteration
         final_kl = metrics['approx_kl'][-1, -1]
-        metrics = jax.tree_util.tree_map(jnp.mean, metrics)
+        metrics = jax.tree.map(jnp.mean, metrics)
         metrics['final_kl'] = final_kl
         if cfg.adaptive_lr:
             if train_actor:
@@ -500,9 +500,9 @@ def load_init_params(path, env_cfg: EnvConfig, train_cfg: TrainConfig):
             params = flax.serialization.from_state_dict(target, state)
         except (KeyError, ValueError):
             return None
-        same = jax.tree_util.tree_structure(params) == jax.tree_util.tree_structure(target) and all(
-            np.shape(a) == np.shape(b) for a, b in zip(jax.tree_util.tree_leaves(params),
-                                                       jax.tree_util.tree_leaves(target)))
+        same = jax.tree.structure(params) == jax.tree.structure(target) and all(
+            np.shape(a) == np.shape(b) for a, b in zip(jax.tree.leaves(params),
+                                                       jax.tree.leaves(target)))
         return params if same else None
 
     actor_params = restore(actor_target, raw['actor'])
