@@ -30,7 +30,7 @@ from flax.training.train_state import TrainState
 
 from marl.config import EnvConfig, TrainConfig
 from marl.curriculum import Curriculum
-from marl.env import EnvParams, MultiMowerEnv
+from marl.env import REWARD_TERMS, EnvParams, MultiMowerEnv
 from marl.maps import RANDOM_GROUP, build_bank, concat_banks, load_map, random_map, train_map_files
 from marl.networks import Actor, Critic, GlobalCritic, LocalCritic
 
@@ -185,6 +185,8 @@ class MAPPO:
     """MAPPO, or IPPO with train_cfg.algo == 'ippo'"""
 
     def __init__(self, env_cfg: EnvConfig, train_cfg: TrainConfig):
+        assert env_cfg.workload_reward_scale == 0 or env_cfg.shaping_gamma == train_cfg.gamma, \
+            'the shaping of the workload reward needs shaping_gamma == gamma'
         self.env_cfg = env_cfg
         self.cfg = train_cfg
         self.env = MultiMowerEnv(env_cfg)
@@ -591,6 +593,8 @@ def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', c
                 ep_length=ep('length'),
                 ep_return=ep('ep_return'),
                 collisions=ep('collisions'),
+                **{f'ep_r_{name}': float(infos['terms'][done][:, k].mean()) if n_done > 0 else float('nan')
+                   for k, name in enumerate(REWARD_TERMS)},
                 **metrics)
             t_last = now
             if writer is None:

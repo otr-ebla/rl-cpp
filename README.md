@@ -83,6 +83,11 @@ The `marl` package extends the mowing task to N robots, trained with MAPPO (cent
 * IPPO (`--algo ippo`): local critic V(o_i) with the same inputs as the actor; everything else unchanged, so the comparison with MAPPO isolates the centralized critic.
 * Limited communication (`--comm_range 5`, meters; 0 = unlimited): each robot keeps its own belief of the coverage and obstacle maps; connected robots (within range, directly or through others) merge beliefs every step. Rewards, metrics and the critic still use the true global maps. `--no_communication` disables it entirely.
 * Reward: the single-agent reward per robot, where the area term mixes the robot's own and the team's newly covered area divided by N (`--team_reward_weight`, 0 = individual, 1 = team). Area covered by k robots in the same step is split 1/k. The incremental total variation term uses each robot's own contribution.
+* Cooperative terms (off by default), computed from the true state also with limited communication (centralized training):
+  * `--workload_size 64`: every step the cells of a 64x64 grid over the map are assigned to the robot with the shortest path to them around the true obstacles (geodesic Voronoi partition); the workload of a robot is the free area not yet covered in its cells. Costs about 12% of the training speed.
+  * `--team_overlap_reward_scale`: penalty for sweeping ground that any robot has covered (1: a whole step on covered ground costs 1).
+  * `--workload_reward_scale` (needs `--workload_size`): team reward for balancing the workloads, potential-based shaping with phi = -(maximum workload), `--shaping_gamma` must equal `--gamma`.
+  * Every term of the reward is logged per episode as `ep_r_<term>` in `progress.csv`. `python -m scripts.multi_agent.reward_terms --load <checkpoint>` measures all terms for a trained policy (new terms at weight 1, no training), to choose their weights.
 * Maps of different sizes are placed on a fixed canvas (`--canvas_size`, 320 pixels for the training maps). The training levels follow `MowerEnv._set_level`; random maps come from a bank regenerated periodically.
 
 Every field of `marl/config.py` is a command line argument (booleans as `--flag` / `--no-flag`). Logs go to `<logdir>/progress.csv`, checkpoints to `<logdir>/checkpoint` and `<logdir>/checkpoint_best`.

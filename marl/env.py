@@ -86,11 +86,17 @@ class EnvState:
     stuck_steps: jnp.ndarray    # (N,) int32, collisions in a row
     covered_by: jnp.ndarray     # (N,) float32, newly covered free pixels attributed to each robot
     ep_return: jnp.ndarray      # (N,) float32, undiscounted return so far
+    ep_terms: jnp.ndarray       # (len(REWARD_TERMS),) float32, undiscounted return so far of each term (robot mean)
     lidar_dist: jnp.ndarray     # (N, R) float32, latest lidar distances [pixels]
     free_cells: jnp.ndarray     # (W, W) bool, cells of the workload grid free of obstacles, see MapBank ((0, 0) if off)
     work: jnp.ndarray           # (W, W) float32, free pixels not yet covered in each cell ((0, 0) if off)
     owner: jnp.ndarray          # (W, W) int8, robot owning each cell of the workload grid ((0, 0) if off)
     workload: jnp.ndarray       # (N,) float32, free area not yet covered in each robot's cells [m^2] (0 if off)
+
+
+# Terms of the reward, in the order of EnvState.ep_terms and info['terms']
+REWARD_TERMS = ('area', 'overlap', 'team_overlap', 'tv', 'turn', 'collision', 'constant', 'goal', 'truncation',
+                'workload')
 
 
 def total_variation(img, img2):
@@ -336,6 +342,7 @@ class MultiMowerEnv:
         reset_state = self._reset_state(k_reset, params)
         state = jax.tree.map(lambda r, s: jnp.where(done, r, s), reset_state, state)
         state = self._update_workload(state)
+        state, rewards = self._add_workload_shaping(state, rewards, done)
         return self._observation(k_obs, state), state, rewards, done, info
 
     def step_batch(self, keys, state: EnvState, actions, params: EnvParams):
@@ -357,6 +364,7 @@ class MultiMowerEnv:
 
         state = jax.lax.cond(jnp.any(done), reset, lambda s: s, state)
         state = jax.vmap(self._update_workload)(state)
+        state, rewards = self._add_workload_shaping(state, rewards, done)
         return jax.vmap(self._observation)(keys[:, 2], state), state, rewards, done, info
 
     # --------------------------------------------------------- simulation
@@ -425,6 +433,7 @@ class MultiMowerEnv:
             stuck_steps=jnp.zeros((N,), dtype=jnp.int32),
             covered_by=jnp.zeros((N,)),
             ep_return=jnp.zeros((N,)),
+            ep_terms=jnp.zeros((len(REWARD_TERMS),)),
             lidar_dist=jnp.zeros((N, cfg.lidar_rays)),
             free_cells=bank.cell_free[idx],
             work=bank.cell_work[idx],
@@ -473,6 +482,29 @@ class MultiMowerEnv:
         _, owner = geodesic_voronoi(seeds, state.free_cells)
         workload = jax.ops.segment_sum(state.work.reshape(-1), owner.reshape(-1), num_segments=N)
         return state.replace(workload=workload * cfg.meters_per_pixel ** 2, owner=owner.astype(jnp.int8))
+
+    def _max_workload(self, state: EnvState):
+        """Maximum workload of the robots in steps of the maximum area a robot covers in a step (-phi)"""
+        cfg = self.cfg
+        if cfg.workload_size == 0:
+            return jnp.zeros(state.workload.shape[:-1])
+        return jnp.max(state.workload, axis=-1) / (cfg.max_newly_visited * cfg.meters_per_pixel ** 2)
+
+    def _add_workload_shaping(self, state: EnvState, rewards, done):
+        """
+        Second part of the workload shaping, gamma * phi(s') of the state
+        after the step (with the workloads of _update_workload), 0 at the
+        end of an episode. state, rewards (..., N), done (...): one
+        environment or a batch. Returns state (episode returns) and rewards.
+        """
+        cfg = self.cfg
+        if cfg.workload_reward_scale == 0:
+            return state, rewards
+        bonus = -cfg.workload_reward_scale * cfg.shaping_gamma * self._max_workload(state) * (1 - done)
+        k = REWARD_TERMS.index('workload')
+        state = state.replace(ep_return=state.ep_return + bonus[..., None],
+                              ep_terms=state.ep_terms.at[..., k].add(bonus))
+        return state, rewards + bonus[..., None]
 
     def _velocities(self, actions):
         cfg = self.cfg
@@ -631,6 +663,8 @@ class MultiMowerEnv:
         new_share = jnp.sum(jnp.where(newly_d, 1 / count, 0), axis=(1, 2))  # N
         team_new = jnp.sum(new_share)
         team_diff = jnp.sum(diff_d)
+        # area swept again that any robot had covered (true coverage, also without communication)
+        team_overlap = jnp.sum(diff & covered_old & ~dilated, axis=(1, 2)).astype(jnp.float32)
         reward_share = new_share
         if cfg.no_communication:
             # the robot only knows (and is rewarded for) its own coverage
@@ -650,7 +684,7 @@ class MultiMowerEnv:
         overlap_sum = jnp.sum(diff * overlap_old, axis=(1, 2)).astype(jnp.float32)
 
         return dict(overlap=overlap, new_share=new_share, share=jnp.where(newly_d, 1 / count, 0),
-                    reward_share=reward_share, team_new=team_new,
+                    reward_share=reward_share, team_new=team_new, team_overlap=team_overlap,
                     team_diff=team_diff, any_new=jnp.any(newly), tv_diff=tv_diff,
                     overlap_sum=overlap_sum, diff=diff, ii=II, jj=JJ)
 
@@ -748,8 +782,17 @@ class MultiMowerEnv:
         reward_goal = jnp.where(success, cfg.goal_coverage_reward, 0)
         reward_trunc = jnp.where(truncated, -cfg.truncation_reward_scale * (1 - coverage), 0)
 
-        rewards = reward_area + reward_ovrlp + reward_tv + reward_turn + reward_coll + \
-                  reward_const + reward_goal + reward_trunc
+        # Team overlap: sweeping ground that any robot has covered
+        reward_team_ovrlp = -cfg.team_overlap_reward_scale * cov['team_overlap'] / max_new
+
+        # Workload shaping, first part: -phi(s) (the second part, gamma * phi(s'),
+        # needs the workloads after the step and the reset, see _add_workload_shaping)
+        reward_load = jnp.full((N,), cfg.workload_reward_scale * self._max_workload(state))
+
+        terms = [reward_area, reward_ovrlp, reward_team_ovrlp, reward_tv, reward_turn, reward_coll,
+                 reward_const, reward_goal, reward_trunc, reward_load]
+        terms = [jnp.broadcast_to(x, (N,)).astype(jnp.float32) for x in terms]
+        rewards = sum(terms)
 
         state = state.replace(
             pos=new_pos,
@@ -767,6 +810,7 @@ class MultiMowerEnv:
             covered_by=state.covered_by + cov['new_share'],
             work=self._update_work(state, cov),
             ep_return=state.ep_return + rewards,
+            ep_terms=state.ep_terms + jnp.stack([jnp.mean(x) for x in terms]),
             lidar_dist=lidar_dist,
             connected=self._connectivity(new_pos))
         if cfg.limited_comm:
@@ -778,6 +822,7 @@ class MultiMowerEnv:
             overlap=overlap_px / jnp.maximum(coverage_px, 1),
             length=t,
             ep_return=jnp.mean(state.ep_return),
+            terms=state.ep_terms,
             collisions=jnp.sum(state.collisions),
             map_idx=state.map_idx)
         return state, rewards, done, info

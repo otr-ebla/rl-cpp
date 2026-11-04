@@ -254,6 +254,56 @@ def test_straight_driving_covers_max_area():
     assert np.isclose(float(state.pos[0, 0]), 0.5 + 6 * env.cfg.max_lin_vel * env.cfg.step_size, atol=1e-4)
 
 
+@pytest.mark.parametrize('no_communication', [False, True])
+def test_team_overlap_reward(no_communication):
+    """Sweeping ground covered by another robot costs about the scale per step, also without communication"""
+    from marl.env import REWARD_TERMS
+    k = REWARD_TERMS.index('team_overlap')
+    env, params = make_env([empty_map()], num_agents=2, team_overlap_reward_scale=0.5,
+                           no_communication=no_communication)
+    state = set_poses(env, params, [[0.5, 1.2], [1.5, 2.1]], [0.0, 0.0])
+    # the strip ahead of robot 0 was covered by another robot (only in the true map, not in robot 0's belief),
+    # robot 1 drives on new ground
+    overlap = np.zeros((64, 64), dtype=np.int16)
+    overlap[:, 25:40] = 1
+    state = state.replace(overlap=jnp.asarray(overlap))
+    terms = []
+    for i in range(4):
+        _, state, _, _, _ = env.step(jax.random.PRNGKey(i), state, jnp.zeros((2, 1)), params)
+        terms.append(float(state.ep_terms[k]))
+    per_step = -np.diff(terms) * 2                          # robot mean -> robot 0 (robot 1 is on new ground)
+    assert np.allclose(per_step, 0.5, atol=0.1)
+    # nothing for new ground
+    env, params = make_env([empty_map()], num_agents=2, team_overlap_reward_scale=0.5)
+    state = set_poses(env, params, [[0.5, 1.2], [1.5, 2.1]], [0.0, 0.0])
+    for i in range(3):
+        _, state, _, _, _ = env.step(jax.random.PRNGKey(i), state, jnp.zeros((2, 1)), params)
+    assert float(state.ep_terms[k]) == 0
+
+
+def test_workload_shaping_telescopes():
+    """With gamma 1 the shaping of an episode adds up to -phi(s0): the initial maximum workload (phi = 0 at the end)"""
+    from marl.env import REWARD_TERMS
+    k = REWARD_TERMS.index('workload')
+    env, params = make_env([wall_map()], num_agents=2, workload_size=16, workload_reward_scale=0.3,
+                           shaping_gamma=1.0, max_episode_steps=12)
+    _, state = env.reset(jax.random.PRNGKey(0), params)
+    initial = 0.3 * float(env._max_workload(state))
+    assert initial > 0
+    total = 0.0
+    key = jax.random.PRNGKey(1)
+    for i in range(12):
+        key, k1, k2 = jax.random.split(key, 3)
+        actions = jax.random.uniform(k1, (2, 1), minval=-1, maxval=1)
+        _, state, rewards, done, info = env.step(k2, state, actions, params)
+        total += float(np.mean(np.array(rewards)))
+    assert bool(done)
+    assert np.isclose(float(info['terms'][k]), initial, rtol=1e-4)
+    # the terms add up to the return of the episode
+    assert np.isclose(float(np.sum(info['terms'])), float(info['ep_return']), rtol=1e-4)
+    assert np.isclose(float(info['ep_return']), total, rtol=1e-4)
+
+
 def test_shared_coverage_is_split():
     """Two robots on top of the same path: newly covered area is split, team reward unchanged"""
     env, params = make_env([empty_map()], num_agents=2, robot_collision_reward=0, team_reward_weight=0)
@@ -323,8 +373,9 @@ def test_vmap_step():
 @pytest.mark.parametrize('comm_range,workload_size', [(0.0, 0), (1.0, 0), (0.0, 16)])
 def test_step_batch_equals_vmap_step(comm_range, workload_size):
     """step_batch (reset under lax.cond) gives exactly the results of vmap(step), with and without resets"""
+    rewards = dict(workload_reward_scale=0.5, team_overlap_reward_scale=0.3) if workload_size else {}
     env, params = make_env([empty_map(), wall_map()], num_agents=2, max_episode_steps=3, comm_range=comm_range,
-                           workload_size=workload_size)
+                           workload_size=workload_size, **rewards)
     E = 4
     _, state = jax.vmap(env.reset, in_axes=(0, None))(jax.random.split(jax.random.PRNGKey(0), E), params)
     # different episode lengths, so that only some environments are reset in a step

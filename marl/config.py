@@ -106,6 +106,18 @@ class EnvConfig:
     :param overlap_reward_scale: Reward multiplier for overlapping a previously covered area
     :param overlap_reward_max: Maximum overlap reward
     :param overlap_reward_always: Whether to always use overlap reward, or only when the area reward is 0
+    :param team_overlap_reward_scale: Penalty for the area a robot sweeps in a
+        step that was already covered by any robot (the true team coverage,
+        also with limited communication: centralized training), relative to
+        the maximum area a robot covers in a step (1: a step entirely on
+        covered ground costs team_overlap_reward_scale)
+    :param workload_reward_scale: Team reward (the same for all robots) for
+        balancing the workloads (needs workload_size): potential-based
+        shaping gamma * phi(s') - phi(s) with phi = -maximum workload of the
+        robots, in steps of the maximum area a robot covers in a step, and
+        phi = 0 at the end of an episode, so that it does not change the
+        optimal policy (Ng et al., 1999)
+    :param shaping_gamma: Discount factor of the shaping, must be the gamma of the training
     :param local_tv_reward_scale: Reward multiplier for local (incremental) total variation
     :param local_tv_reward_max: Maximum reward from local (incremental) total variation
     :param turn_reward_scale: Reward scale for turning penalty
@@ -159,6 +171,9 @@ class EnvConfig:
     overlap_reward_scale: float = 0
     overlap_reward_max: float = 5
     overlap_reward_always: bool = False
+    team_overlap_reward_scale: float = 0
+    workload_reward_scale: float = 0
+    shaping_gamma: float = 0.99
     local_tv_reward_scale: float = 1
     local_tv_reward_max: float = 5
     turn_reward_scale: float = 0
@@ -178,6 +193,7 @@ class EnvConfig:
         assert self.comm_range >= 0
         assert not self.global_crop or self.neighbor_observation, 'global_crop needs neighbor_observation'
         assert self.workload_size >= 0
+        assert self.workload_reward_scale == 0 or self.workload_size > 0, 'workload_reward_scale needs workload_size'
 
     # Derived quantities
 
