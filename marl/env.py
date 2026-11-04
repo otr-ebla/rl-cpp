@@ -301,9 +301,10 @@ class MultiMowerEnv:
               obstacles, known obstacles, robots (canvas frame, or map frame
               with global_crop), the robot channel only without
               neighbor_observation
-      agent:  (N, 6) float32, per robot state for the critic: position / canvas
-              size (map size with global_crop), cos/sin heading, team
-              coverage, elapsed time
+      agent:  (N, 6 + P') float32, per robot state for the critic: position /
+              canvas size (map size with global_crop), cos/sin heading, team
+              coverage, elapsed time, (critic_workload) the privileged
+              features of _privileged
     With neighbor_observation, the other robots as sets (row i: robot j as
     seen by robot i, see _relative_poses), whose size is the number of robots:
       others:      (N, N, F) float32, relative poses from the robot's own
@@ -315,7 +316,8 @@ class MultiMowerEnv:
                    the critic (all j != i)
       progress:    (P,) float32, episode progress for the critic: goal
                    coverage, steps without new coverage / max_non_new_steps,
-                   (global_crop) map side [m] / 10
+                   (global_crop) map side [m] / 10, (critic_workload) maximum
+                   workload [thousands of steps of maximum coverage]
     """
 
     def __init__(self, cfg: EnvConfig):
@@ -829,6 +831,25 @@ class MultiMowerEnv:
 
     # ------------------------------------------------------- observations
 
+    def _privileged(self, state: EnvState, other):
+        """
+        (N, privileged_features) features of each robot from the true state
+        for the critic (critic_workload, see EnvConfig): workload [thousands
+        of steps of maximum coverage], share of the team's workload, and with
+        limited communication the free area covered by the team that the
+        robot does not know as covered (fraction of the free space) and the
+        fraction of the other robots it is connected to.
+        """
+        cfg = self.cfg
+        N = cfg.num_agents
+        load = state.workload / (cfg.max_newly_visited * cfg.meters_per_pixel ** 2)
+        feats = [load / 1000, state.workload / jnp.maximum(jnp.sum(state.workload), 1e-6)]
+        if cfg.limited_comm:
+            unknown = (state.overlap > 0)[None] & (state.belief_overlap == 0)
+            feats.append(jnp.sum(unknown, axis=(1, 2)) / state.free_space)
+            feats.append(jnp.sum(other, axis=1) / max(N - 1, 1))
+        return jnp.stack(feats, axis=-1)
+
     def _coverage_known(self, overlap, known):
         """Coverage and known obstacle channels (float32) of the observation"""
         if self.cfg.overlap_observation:
@@ -990,6 +1011,9 @@ class MultiMowerEnv:
             jnp.full((N, 1), coverage_frac),
             jnp.full((N, 1), state.t / cfg.max_episode_steps)], axis=-1)
 
+        if cfg.critic_workload:
+            agent = jnp.concatenate([agent, self._privileged(state, other)], axis=-1)
+
         obs = {'maps': maps, 'lidar': lidar.astype(jnp.float32),
                'global': global_maps, 'agent': agent.astype(jnp.float32)}
         if cfg.neighbor_observation:
@@ -1002,5 +1026,7 @@ class MultiMowerEnv:
             progress = [state.goal_coverage, state.non_new_steps / cfg.max_non_new_steps]
             if cfg.global_crop:
                 progress.append(state.size * cfg.meters_per_pixel / 10)
+            if cfg.critic_workload:
+                progress.append(self._max_workload(state) / 1000)
             obs['progress'] = jnp.stack(progress).astype(jnp.float32)
         return obs

@@ -25,6 +25,16 @@
 #                      position (critic_gather)
 #   mappo_agent_gather mappo_gather with the agent-specific critic
 #
+# Cooperative reward (MAPPO):
+#   mappo_tovl         penalty 0.3 for sweeping ground any robot has covered
+#                      (team_overlap_reward_scale, on the true team coverage)
+#   mappo_coop         mappo_tovl, the workload reward 0.02 (64 x 64 grid) and
+#                      the privileged workload features in the critic
+#                      (critic_workload)
+#   ippo_coop          mappo_coop with IPPO (the local critic gets no
+#                      privileged features), same rewards
+# For limited communication add e.g. --comm_range 5 with OUT=experiments/<name>.
+#
 # A checkpoint whose critic does not match the configuration (the centralized
 # critic of the initial checkpoint for IPPO) only initializes the actor.
 # Output in experiments/<recipe>; further arguments go to
@@ -35,6 +45,7 @@ source "$(dirname "$0")/common.sh"
 MAPPO_RUN=${MAPPO_RUN:-experiments/mappo_sb3_v2}
 INIT=${INIT:-experiments/sb3_init/checkpoint}
 
+COOP=(--team_overlap_reward_scale 0.3 --workload_size 64 --workload_reward_scale 0.02 --critic_workload)
 RECIPE=${1:?usage: $0 <recipe> [train options], recipes at the top of $0}
 shift
 case $RECIPE in
@@ -47,6 +58,9 @@ case $RECIPE in
   mappo_crop)         ARGS=(--algo mappo --global_crop) ;;
   mappo_gather)       ARGS=(--algo mappo --global_crop --critic_gather) ;;
   mappo_agent_gather) ARGS=(--algo mappo --critic_state agent_specific --global_crop --critic_gather) ;;
+  mappo_tovl)         ARGS=(--algo mappo --team_overlap_reward_scale 0.3) ;;
+  mappo_coop)         ARGS=(--algo mappo "${COOP[@]}") ;;
+  ippo_coop)          ARGS=(--algo ippo "${COOP[@]}") ;;
   *) echo "unknown recipe $RECIPE (see the comments at the top of $0)"; exit 1 ;;
 esac
 OUT=${OUT:-experiments/$RECIPE}

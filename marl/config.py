@@ -85,6 +85,15 @@ class EnvConfig:
         cells must be smaller than the doors (two free cells), and the
         shortest paths are followed for at most workload_size steps: the
         farther cells get the closest robot in a straight line
+    :param critic_workload: Whether the centralized critic gets privileged
+        features of each robot from the true state (needs workload_size and
+        neighbor_observation), appended to its agent features: the robot's
+        workload [thousands of steps of maximum coverage] and its share of
+        the team's workload, and with limited communication the free area
+        covered by the team that the robot does not know as covered
+        (fraction of the free space) and the fraction of the other robots
+        it is connected to. The maximum workload (the potential of the
+        workload reward, same units) is appended to the episode progress
     :param max_episode_steps: Maximum episode length
     :param max_non_new_steps: Maximum steps in a row in which no robot covered new ground
     :param flip_when_stuck: Whether to turn a robot by 180 degrees when it collided
@@ -156,6 +165,7 @@ class EnvConfig:
     global_size: int = 64
     global_crop: bool = False
     workload_size: int = 0
+    critic_workload: bool = False
     max_episode_steps: int = 2000
     max_non_new_steps: int = 1000
     flip_when_stuck: bool = False
@@ -194,6 +204,8 @@ class EnvConfig:
         assert not self.global_crop or self.neighbor_observation, 'global_crop needs neighbor_observation'
         assert self.workload_size >= 0
         assert self.workload_reward_scale == 0 or self.workload_size > 0, 'workload_reward_scale needs workload_size'
+        assert not self.critic_workload or (self.workload_size > 0 and self.neighbor_observation), \
+            'critic_workload needs workload_size and neighbor_observation'
 
     # Derived quantities
 
@@ -247,8 +259,9 @@ class EnvConfig:
 
     @property
     def progress_features(self):
-        # goal coverage, steps without new coverage / max_non_new_steps, (global_crop) map side
-        return 2 + int(self.global_crop)
+        # goal coverage, steps without new coverage / max_non_new_steps, (global_crop) map side,
+        # (critic_workload) maximum workload
+        return 2 + int(self.global_crop) + int(self.critic_workload)
 
     @property
     def team_features(self):
@@ -257,8 +270,13 @@ class EnvConfig:
 
     @property
     def agent_features(self):
-        # position (2), heading (2), team coverage, time
-        return 6
+        # position (2), heading (2), team coverage, time, (critic_workload) privileged features
+        return 6 + self.privileged_features
+
+    @property
+    def privileged_features(self):
+        # workload, share of the team's workload, (limited communication) unknown coverage, connected robots
+        return (2 + 2 * int(self.limited_comm)) if self.critic_workload else 0
 
     @property
     def max_newly_visited(self):

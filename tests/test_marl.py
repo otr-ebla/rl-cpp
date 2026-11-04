@@ -205,6 +205,39 @@ def test_workload():
     assert state.owner.shape == (0, 0) and not np.array(state.workload).any()
 
 
+@pytest.mark.parametrize('comm_range', [0.0, 1.0])
+def test_critic_workload(comm_range):
+    """Privileged features of the critic: workloads, max workload, unknown coverage, connected robots"""
+    env, params = make_env([wall_map()], num_agents=3, workload_size=16, critic_workload=True, comm_range=comm_range)
+    cfg = env.cfg
+    assert cfg.agent_features == 6 + (4 if comm_range else 2) and cfg.progress_features == 3
+    unit = cfg.max_newly_visited * cfg.meters_per_pixel ** 2
+    obs, state = env.reset(jax.random.PRNGKey(0), params)
+    for k in range(30):
+        obs, state, _, _, _ = env.step(jax.random.PRNGKey(k), state, jnp.ones((3, 1)), params)
+        agent = np.array(obs['agent'])
+        assert agent.shape == (3, cfg.agent_features)
+        workload = np.array(state.workload)
+        assert np.allclose(agent[:, 6] * 1000 * unit, workload, rtol=1e-4)
+        assert np.isclose(agent[:, 7].sum(), 1, atol=1e-5)
+        assert np.isclose(float(obs['progress'][-1]) * 1000 * unit, workload.max(), rtol=1e-4)
+        if comm_range:
+            assert ((agent[:, 8] >= 0) & (agent[:, 8] <= 1)).all()
+            connected = (np.array(state.connected) & ~np.eye(3, dtype=bool)).sum(1) / 2
+            assert np.allclose(agent[:, 9], connected)
+    if comm_range:
+        # a robot does not know what the robots it is not connected to have covered
+        conn = np.array(state.connected)
+        unknown = np.array([((np.array(state.overlap) > 0) & (np.array(state.belief_overlap[i]) == 0)).sum()
+                            for i in range(3)]) / float(state.free_space)
+        assert np.allclose(agent[:, 8], unknown, atol=1e-6)
+        if not conn.all():
+            assert agent[:, 8].max() > 0
+    # off: the agent features are unchanged
+    env, params = make_env([wall_map()], num_agents=3, workload_size=16)
+    assert env.cfg.agent_features == 6 and env.reset(jax.random.PRNGKey(0), params)[0]['agent'].shape == (3, 6)
+
+
 def test_egocentric_orientation():
     """Up in the observation is forward, columns increase to the right of the robot"""
     known, unknown = empty_map()
@@ -410,12 +443,16 @@ def test_curriculum():
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize('algo,critic_state,comm_range,gather', [
-    ('mappo', 'global', 0, False), ('mappo', 'agent_specific', 0, False), ('ippo', 'global', 0, False),
-    ('mappo', 'global', 1.0, False), ('mappo', 'global', 0, True), ('mappo', 'agent_specific', 0, True)])
-def test_mappo_update(algo, critic_state, comm_range, gather):
+@pytest.mark.parametrize('algo,critic_state,comm_range,gather,workload', [
+    ('mappo', 'global', 0, False, False), ('mappo', 'agent_specific', 0, False, False),
+    ('ippo', 'global', 0, False, False), ('mappo', 'global', 1.0, False, False), ('mappo', 'global', 0, True, False),
+    ('mappo', 'agent_specific', 0, True, False), ('mappo', 'global', 1.0, False, True),
+    ('mappo', 'agent_specific', 1.0, True, True)])
+def test_mappo_update(algo, critic_state, comm_range, gather, workload):
     from marl.mappo import MAPPO
-    env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8, comm_range=comm_range, global_crop=gather)
+    coop = dict(workload_size=16, critic_workload=True, workload_reward_scale=0.02, team_overlap_reward_scale=0.3,
+                shaping_gamma=TrainConfig().gamma) if workload else {}
+    env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8, comm_range=comm_range, global_crop=gather, **coop)
     train_cfg = TrainConfig(algo=algo, critic_state=critic_state, num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, update_epochs=2,
                             hidden_dims=32, critic_gather=gather)
     bank = build_bank([empty_map(), empty_map(48)], env_cfg)

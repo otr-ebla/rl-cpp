@@ -292,8 +292,9 @@ class GlobalCritic(nn.Module):
 
     Inputs (one row per environment, all N robots together):
       global_maps: (B, G, G, C) global maps of the environment
-      agent:       (B, N, 6) position / canvas size, cos/sin heading, team
-                   coverage, elapsed time (see MultiMowerEnv)
+      agent:       (B, N, 6 + P') position / canvas size, cos/sin heading,
+                   team coverage, elapsed time, privileged features of each
+                   robot (critic_workload, see MultiMowerEnv)
       progress:    (B, P) episode progress (see MultiMowerEnv)
     Returns (B, N) values.
     """
@@ -307,9 +308,10 @@ class GlobalCritic(nn.Module):
     @nn.compact
     def __call__(self, global_maps, agent, progress):
         B, N = agent.shape[:2]
-        poses, scalars = agent[..., :4], agent[:, 0, 4:]                   # coverage and time: same for all robots
+        # pose and privileged features of each robot; coverage and time: the same for all robots
+        poses, scalars = agent[..., :4], agent[:, 0, 4:6]
         robots = PoseEncoder(self.neighbor_dims, self.neighbor_layers, self.neighbor_heads, ego=False)(
-            poses, jnp.ones((B, N), dtype=bool))
+            jnp.concatenate([poses, agent[..., 6:]], axis=-1), jnp.ones((B, N), dtype=bool))
         if self.gather:
             g, at_robot = global_maps_encoding(self, global_maps, poses[..., :2])
             robots = jnp.concatenate([robots, at_robot], axis=-1)
