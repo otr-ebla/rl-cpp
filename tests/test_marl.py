@@ -287,33 +287,6 @@ def test_straight_driving_covers_max_area():
     assert np.isclose(float(state.pos[0, 0]), 0.5 + 6 * env.cfg.max_lin_vel * env.cfg.step_size, atol=1e-4)
 
 
-@pytest.mark.parametrize('no_communication', [False, True])
-def test_team_overlap_reward(no_communication):
-    """Sweeping ground covered by another robot costs about the scale per step, also without communication"""
-    from marl.env import REWARD_TERMS
-    k = REWARD_TERMS.index('team_overlap')
-    env, params = make_env([empty_map()], num_agents=2, team_overlap_reward_scale=0.5,
-                           no_communication=no_communication)
-    state = set_poses(env, params, [[0.5, 1.2], [1.5, 2.1]], [0.0, 0.0])
-    # the strip ahead of robot 0 was covered by another robot (only in the true map, not in robot 0's belief),
-    # robot 1 drives on new ground
-    overlap = np.zeros((64, 64), dtype=np.int16)
-    overlap[:, 25:40] = 1
-    state = state.replace(overlap=jnp.asarray(overlap))
-    terms = []
-    for i in range(4):
-        _, state, _, _, _ = env.step(jax.random.PRNGKey(i), state, jnp.zeros((2, 1)), params)
-        terms.append(float(state.ep_terms[k]))
-    per_step = -np.diff(terms) * 2                          # robot mean -> robot 0 (robot 1 is on new ground)
-    assert np.allclose(per_step, 0.5, atol=0.1)
-    # nothing for new ground
-    env, params = make_env([empty_map()], num_agents=2, team_overlap_reward_scale=0.5)
-    state = set_poses(env, params, [[0.5, 1.2], [1.5, 2.1]], [0.0, 0.0])
-    for i in range(3):
-        _, state, _, _, _ = env.step(jax.random.PRNGKey(i), state, jnp.zeros((2, 1)), params)
-    assert float(state.ep_terms[k]) == 0
-
-
 def test_workload_shaping_telescopes():
     """With gamma 1 the shaping of an episode adds up to -phi(s0): the initial maximum workload (phi = 0 at the end)"""
     from marl.env import REWARD_TERMS
@@ -361,6 +334,45 @@ def test_robot_collision():
     assert (np.array(rewards) < env.cfg.robot_collision_reward + 1).all()
 
 
+def test_robot_collision_only_when_touching():
+    """
+    Robot-robot collisions only when the circles touch during the step:
+    following a robot into the place it leaves is not a collision, crossing
+    paths at the same time is one even if the end positions are apart
+    """
+    env, params = make_env([empty_map()], num_agents=2)
+    r = env.cfg.mower_radius
+    step = env.cfg.max_lin_vel * env.cfg.step_size
+    # robot 0 follows robot 1 at 2 r + 0.5 step: its new position is near the old one of robot 1
+    state = set_poses(env, params, [[1.0, 1.2], [1.0 + 2 * r + step / 2, 1.2]], [0.0, 0.0])
+    state, _, _, _ = env._step_state(jax.random.PRNGKey(0), state, jnp.zeros((2, 1)))
+    assert (np.array(state.collisions) == 0).all()
+    # crossing paths (robot 0 along +x, robot 1 along -y): start and end more
+    # than 2 r apart, but closer than 2 r in between
+    s = step / math.sqrt(2)                               # half the relative motion, along (1, 1)
+    a = np.array([-s + 0.29, -s - 0.29]) / math.sqrt(2)   # p0 - p1, 0.29 m off the relative path
+    p0 = np.array([1.0, 1.2])
+    state = set_poses(env, params, [p0, p0 - a], [0.0, -math.pi / 2])
+    pos0 = np.array(state.pos)
+    d = lambda q: float(np.linalg.norm(q[0] - q[1]))
+    assert d(pos0) > 2 * r and d(pos0 + np.array([[step, 0], [0, -step]])) > 2 * r
+    state, _, _, _ = env._step_state(jax.random.PRNGKey(0), state, jnp.zeros((2, 1)))
+    assert (np.array(state.collisions) == 1).all() and np.allclose(np.array(state.pos), pos0)
+
+
+def test_robot_collision_cascade():
+    """A robot that collides stays still: a robot running into it collides too"""
+    env, params = make_env([empty_map()], num_agents=2)
+    r = env.cfg.mower_radius
+    step = env.cfg.max_lin_vel * env.cfg.step_size
+    # robot 1 drives into the wall at x = 0, robot 0 follows it closely
+    x1 = r + step / 2
+    state = set_poses(env, params, [[x1 + 2 * r + step / 2, 1.2], [x1, 1.2]], [math.pi, math.pi])
+    state, _, _, _ = env._step_state(jax.random.PRNGKey(0), state, jnp.zeros((2, 1)))
+    assert (np.array(state.collisions) == 1).all()
+    assert int(state.robot_collisions[0]) == 1 and int(state.robot_collisions[1]) == 0
+
+
 def test_flip_when_stuck():
     """Two robots driving into each other: deadlock, unless they are flipped after max_stuck_steps"""
     for flip in (False, True):
@@ -406,7 +418,7 @@ def test_vmap_step():
 @pytest.mark.parametrize('comm_range,workload_size', [(0.0, 0), (1.0, 0), (0.0, 16)])
 def test_step_batch_equals_vmap_step(comm_range, workload_size):
     """step_batch (reset under lax.cond) gives exactly the results of vmap(step), with and without resets"""
-    rewards = dict(workload_reward_scale=0.5, team_overlap_reward_scale=0.3) if workload_size else {}
+    rewards = dict(workload_reward_scale=0.5) if workload_size else {}
     env, params = make_env([empty_map(), wall_map()], num_agents=2, max_episode_steps=3, comm_range=comm_range,
                            workload_size=workload_size, **rewards)
     E = 4
@@ -450,7 +462,7 @@ def test_curriculum():
     ('mappo', 'agent_specific', 1.0, True, True)])
 def test_mappo_update(algo, critic_state, comm_range, gather, workload):
     from marl.mappo import MAPPO
-    coop = dict(workload_size=16, critic_workload=True, workload_reward_scale=0.02, team_overlap_reward_scale=0.3,
+    coop = dict(workload_size=16, critic_workload=True, workload_reward_scale=0.02,
                 shaping_gamma=TrainConfig().gamma) if workload else {}
     env_cfg = EnvConfig(**SMALL, num_agents=2, max_episode_steps=8, comm_range=comm_range, global_crop=gather, **coop)
     train_cfg = TrainConfig(algo=algo, critic_state=critic_state, num_envs=2, num_steps=8, total_steps=64, minibatch_size=16, update_epochs=2,
@@ -712,6 +724,37 @@ def test_collision_ends_episode(flag):
     assert bool(done) == flag and bool(info['crashed']) == flag and not bool(info['success'])
 
 
+def test_testing_outcomes_exclusive():
+    """Test rules (for_testing): every episode ends with exactly one of success, collision, timeout"""
+    assert not EnvConfig().collision_ends_episode and EnvConfig().for_testing().collision_ends_episode
+    cfg = EnvConfig(**SMALL, num_agents=3, max_episode_steps=12).for_testing()
+    env = MultiMowerEnv(cfg)
+    bank = build_bank([empty_map(), wall_map()], cfg)
+    params = EnvParams(bank=bank, map_logits=jnp.zeros(2), goal_coverage=jnp.float32(0.2))
+    E = 16
+    obs, state = jax.vmap(env.reset, in_axes=(0, None))(jax.random.split(jax.random.PRNGKey(0), E), params)
+
+    @jax.jit
+    def run(state, key):
+        def body(state, k):
+            k_act, k_env = jax.random.split(k)
+            actions = jax.random.uniform(k_act, (E, 3, cfg.action_dim), minval=-1, maxval=1)
+            _, state, _, done, info = env.step_batch(jax.random.split(k_env, E), state, actions, params)
+            return state, (done, info['success'], info['crashed'], info['collisions'], info['length'])
+        return jax.lax.scan(body, state, jax.random.split(key, 300))[1]
+
+    done, success, crashed, collisions, length = map(np.array, run(state, jax.random.PRNGKey(1)))
+    done = done.astype(bool)
+    success, crashed = success[done].astype(bool), crashed[done].astype(bool)
+    timeout = ~success & ~crashed
+    assert not np.any(success & crashed)
+    assert np.allclose(success.mean() + crashed.mean() + timeout.mean(), 1)
+    # a collision ended the episode: exactly one step with collisions; no collision otherwise
+    assert np.all(collisions[done][crashed] > 0) and np.all(collisions[done][~crashed] == 0)
+    assert np.all(length[done][timeout] == cfg.max_episode_steps)
+    assert success.any() and crashed.any() and timeout.any()
+
+
 @pytest.mark.parametrize('flag', [False, True])
 def test_no_communication(flag):
     """Without communication a robot is rewarded on its own coverage only and gets no poses of the others"""
@@ -726,3 +769,110 @@ def test_no_communication(flag):
     cov = env._coverage_update(state, state.pos + jnp.array([[0.1, 0.0], [0.0, 0.1]]))
     assert np.all(np.array(cov['new_share']) == 0)
     assert np.all(np.array(cov['reward_share']) > 0) == flag
+
+
+# fields of EnvState with a leading robot axis
+ROBOT_FIELDS = ('pos', 'heading', 'prev_pos', 'belief_overlap', 'belief_known', 'collisions', 'robot_collisions',
+                'stuck_steps', 'covered_by', 'ep_return', 'lidar_dist', 'workload', 'active')
+
+
+def first_robots(state, k):
+    """The state of the first k robots (as for an environment with k robots)"""
+    fields = {f: getattr(state, f)[:k] for f in ROBOT_FIELDS}
+    return state.replace(connected=state.connected[:k, :k], **fields)
+
+
+def test_variable_agents_reset():
+    """min_agents: uniform number of robots, the first ones active, the parked ones at robot 0"""
+    env, params = make_env([empty_map()], num_agents=4, min_agents=2)
+    counts = []
+    for i in range(200):
+        _, state = env.reset(jax.random.PRNGKey(i), params)
+        active = np.array(state.active)
+        n = int(active.sum())
+        counts.append(n)
+        assert np.array_equal(active, np.arange(4) < n)
+        pos = np.array(state.pos)
+        assert np.allclose(pos[n:], pos[0])
+        d = np.linalg.norm(pos[:n, None] - pos[None, :n], axis=-1) + np.eye(n) * 9
+        assert d.min() >= env.cfg.robot_separation - 1e-6
+        assert np.array_equal(np.array(state.connected), (active[:, None] & active[None, :]) | np.eye(4, dtype=bool))
+    assert set(counts) == {2, 3, 4}
+    assert all(c > 40 for c in np.bincount(counts)[2:])
+    assert EnvConfig(num_agents=8, min_agents=2).for_testing().min_agents == 0
+
+
+@pytest.mark.parametrize('comm_range', [0.0, 1.0])
+def test_variable_agents_equal_fixed(comm_range):
+    """An episode with k of 4 robots active is the episode of an environment with k robots:
+    the parked robots do not move, cover, collide, appear in any observation or get rewards"""
+    rng = np.random.default_rng(3)
+    cfg = EnvConfig(**SMALL)
+    maps = [random_map(rng, cfg, min_size_p=64, max_size_p=64)[:2]]
+    coop = dict(workload_size=16, workload_reward_scale=0.02, critic_workload=True, max_episode_steps=1000)
+    var, params = make_env(maps, num_agents=4, min_agents=2, comm_range=comm_range, **coop)
+    seen = set()
+    for seed in range(12):
+        obs_v, state_v = var.reset(jax.random.PRNGKey(seed), params)
+        k = int(state_v.active.sum())
+        if k == 4 or k in seen:
+            continue
+        seen.add(k)
+        fixed, _ = make_env(maps, num_agents=k, comm_range=comm_range, **coop)
+        state_f = first_robots(state_v, k)
+        obs_f = fixed._observation(jax.random.PRNGKey(0), state_f)
+        obs_v = var._observation(jax.random.PRNGKey(0), state_v)
+        parked0 = np.array(state_v.pos[k:])
+        key = jax.random.PRNGKey(seed + 100)
+        for t in range(25):
+            for name in obs_f:
+                a, b = np.array(obs_f[name]), np.array(obs_v[name])
+                if name in ('global', 'progress'):
+                    assert np.allclose(a, b, atol=1e-5), (name, t)
+                elif name in ('others', 'others_mask', 'team'):
+                    assert np.allclose(a, b[:k, :k], atol=1e-5), (name, t)
+                    if name == 'others_mask':
+                        assert not b[:, k:].any() and not b[k:, :].any()
+                else:
+                    assert np.allclose(a, b[:k], atol=1e-5), (name, t)
+            key, k_act, k_step = jax.random.split(key, 3)
+            actions = jax.random.uniform(k_act, (4, 1), minval=-1, maxval=1)
+            state_f, r_f, d_f, info_f = fixed._step_state(k_step, state_f, actions[:k])
+            state_v, r_v, d_v, info_v = var._step_state(k_step, state_v, actions)
+            state_f, r_f = fixed._add_workload_shaping(fixed._update_workload(state_f), r_f, d_f)
+            state_v, r_v = var._add_workload_shaping(var._update_workload(state_v), r_v, d_v)
+            assert bool(d_f) == bool(d_v)
+            assert np.allclose(np.array(r_f), np.array(r_v[:k]), atol=1e-5) and np.all(np.array(r_v[k:]) == 0)
+            assert np.array_equal(np.array(state_f.overlap), np.array(state_v.overlap))
+            assert np.allclose(np.array(state_f.workload), np.array(state_v.workload[:k]), atol=1e-4)
+            assert np.all(np.array(state_v.workload[k:]) == 0)
+            assert np.array_equal(np.array(state_f.collisions), np.array(state_v.collisions[:k]))
+            assert np.allclose(np.array(state_f.ep_terms), np.array(state_v.ep_terms), atol=1e-4)
+            for name in ('coverage', 'ep_return', 'collisions', 'success', 'crashed'):
+                assert np.allclose(np.array(info_f[name]), np.array(info_v[name]), atol=1e-4), name
+            assert int(info_v['robots']) == k
+            assert np.allclose(np.array(state_v.pos[k:]), parked0)
+            if bool(d_v):
+                break
+            obs_f = fixed._observation(jax.random.PRNGKey(t), state_f)
+            obs_v = var._observation(jax.random.PRNGKey(t), state_v)
+    assert seen == {2, 3}
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize('algo', ['mappo', 'ippo'])
+def test_mappo_update_variable_agents(algo):
+    from marl.mappo import MAPPO
+    env_cfg = EnvConfig(**SMALL, num_agents=4, min_agents=2, max_episode_steps=8, workload_size=16,
+                        workload_reward_scale=0.02, shaping_gamma=TrainConfig().gamma, collision_ends_episode=True)
+    train_cfg = TrainConfig(algo=algo, num_envs=4, num_steps=8, total_steps=128, minibatch_size=32, update_epochs=2,
+                            hidden_dims=32)
+    bank = build_bank([empty_map(), empty_map(48)], env_cfg)
+    params = EnvParams(bank=bank, map_logits=jnp.zeros(2), goal_coverage=jnp.float32(0.9))
+    algo = MAPPO(env_cfg, train_cfg)
+    runner = algo.init(jax.random.PRNGKey(0), params)
+    runner, metrics, infos = algo.update(runner, params)
+    for k, v in metrics.items():
+        assert np.isfinite(float(v)), k
+    robots = np.array(infos['robots'])[np.array(infos['done'])]
+    assert robots.size > 0 and robots.min() >= 2 and robots.max() <= 4

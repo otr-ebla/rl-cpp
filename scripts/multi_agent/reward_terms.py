@@ -4,8 +4,8 @@ of new reward terms before training with them.
 
 Runs the policy of a checkpoint (stochastic actions, as in training) on the
 maps of the last training level (fixed and random maps, goal coverage 0.99)
-with the team overlap and workload terms switched on at weight 1, without
-training: these terms do not change the actions, so the episodes are the
+with the workload term switched on at weight 1, without
+training: this term does not change the actions, so the episodes are the
 ones the policy would collect anyway. Prints, for each communication range,
 every term of the reward (robot mean) per episode and per step; the other
 terms with their weights of the checkpoint. A term at weight w is w times
@@ -29,7 +29,7 @@ from marl.env import REWARD_TERMS, EnvParams, MultiMowerEnv
 from marl.maps import concat_banks
 from marl.mappo import actor_apply, load_checkpoint, make_networks, make_training_maps
 
-NEW_TERMS = ('team_overlap', 'workload')
+NEW_TERMS = ('workload',)
 
 
 def collect(env, actor, actor_params, env_params, num_envs, num_steps, key):
@@ -75,7 +75,7 @@ def main():
     rows = []
     for comm_range in args.comm_range:
         cfg = env_cfg.to_dict()
-        cfg.update(comm_range=comm_range, workload_size=args.workload_size, team_overlap_reward_scale=1.0,
+        cfg.update(comm_range=comm_range, workload_size=args.workload_size,
                    workload_reward_scale=1.0, shaping_gamma=train_cfg.gamma)
         if args.num_agents is not None:
             cfg['num_agents'] = args.num_agents

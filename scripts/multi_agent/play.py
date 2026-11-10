@@ -70,6 +70,7 @@ ROBOT_COLORS = [(228, 26, 28), (55, 126, 184), (255, 127, 0), (152, 78, 163),
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (110, 110, 110)
+COLLISION_RED = (255, 0, 0)
 PANEL_BG = (240, 240, 240)
 LABEL_BG = (178, 178, 178)
 CROP_COLORS = [(230, 25, 75), (245, 130, 48), (0, 130, 200), (145, 30, 180), (70, 240, 240), (240, 50, 230)]
@@ -114,8 +115,80 @@ class Simulation:
             noise = jnp.exp(log_std) * jax.random.normal(k_act, mean.shape)
             action = jnp.where(deterministic, mean, mean + noise)
             # no automatic reset, so that the final state can be shown
-            state, rewards, done, info = env._step_state(k_step, state, action.reshape(N, -1))
-            return env._observation(k_obs, state), state, rewards, done, info
+            new_state, rewards, done, info = env._step_state(k_step, state, action.reshape(N, -1))
+            collided = new_state.collisions > state.collisions
+            contact = contact_positions(state, new_state, action.reshape(N, -1), collided)
+            return env._observation(k_obs, new_state), new_state, rewards, done, info, contact, collided
+
+        def contact_positions(state, new_state, actions, collided):
+            """
+            Display only: a robot that collides stays at its old position in
+            the env, so it would be drawn before touching anything. All the
+            robots move at the same time along their attempted straight motion
+            p_k(s) = pos_k + s * delta_k, s in [0, 1], and the step is shown at
+            the first contact s* of a robot that collided:
+              - robot-robot (at least one collided): |p_i(s) - p_j(s)| = 2 r,
+                solved exactly (quadratic in s), the two circles touch
+              - wall: a coordinate of the center at r from the border, exact
+              - obstacle: the center enters the dilated obstacles (blocked),
+                first blocked of 64 samples refined by bisection
+            Returns the positions and headings of all the robots at s*. The
+            robot-robot rule is the one of the env (swept_distance), so every
+            collision has its contact; s* = 0 only as a fallback.
+            """
+            cfg = env_cfg
+            r = cfg.mower_radius
+            S = cfg.canvas_size
+            size_m = state.size * cfg.meters_per_pixel
+            lin_vel, ang_vel = env._velocities(actions)
+            dh = ang_vel * cfg.step_size
+            mid = state.heading + dh / 2
+            delta = (lin_vel * cfg.step_size)[:, None] * jnp.stack([jnp.cos(mid), jnp.sin(mid)], axis=-1)
+            p0 = state.pos
+            inf = jnp.float32(jnp.inf)
+
+            # robot-robot: |a + s b|^2 = (2 r)^2, smallest root in [0, 1]
+            a = p0[:, None] - p0[None, :]
+            b = delta[:, None] - delta[None, :]
+            A = jnp.sum(b * b, -1)
+            B = 2 * jnp.sum(a * b, -1)
+            C = jnp.sum(a * a, -1) - (2 * r) ** 2
+            disc = B * B - 4 * A * C
+            root = (-B - jnp.sqrt(jnp.maximum(disc, 0))) / jnp.maximum(2 * A, 1e-12)
+            root = jnp.where(C <= 0, 0.0, root)   # already touching
+            pair = (~jnp.eye(N, dtype=bool)) & (collided[:, None] | collided[None, :])
+            ok = pair & (disc >= 0) & (A > 0) & (root >= 0) & (root <= 1) | pair & (C <= 0)
+            s_robot = jnp.min(jnp.where(ok, root, inf))
+
+            # walls: p + s d = r or size - r
+            d_safe = jnp.where(delta == 0, 1e-12, delta)
+            s_wall = jnp.where(delta > 0, (size_m - r - p0) / d_safe, (r - p0) / d_safe)
+            s_wall = jnp.where((delta != 0) & (s_wall >= 0) & (s_wall <= 1), s_wall, inf)
+            s_wall = jnp.min(jnp.where(collided[:, None], s_wall, inf))
+
+            # obstacles: first blocked sample, then bisection
+            def blocked(p):
+                pix = jnp.clip(jnp.floor(p * cfg.pixels_per_meter).astype(jnp.int32), 0, S - 1)
+                return state.blocked[pix[..., 0], pix[..., 1]]
+            K = 64
+            ss = jnp.arange(1, K + 1) / K
+            hit = blocked(p0[:, None] + ss[None, :, None] * delta[:, None])   # N x K
+            first = jnp.argmax(hit, axis=1)
+            any_hit = jnp.any(hit, axis=1) & collided
+            lo = jnp.where(first == 0, 0.0, ss[first - 1])
+            hi = ss[first]
+
+            def bisect(_, lo_hi):
+                lo, hi = lo_hi
+                s = (lo + hi) / 2
+                b = blocked(p0 + s[:, None] * delta)
+                return jnp.where(b, lo, s), jnp.where(b, s, hi)
+            lo, _ = jax.lax.fori_loop(0, 24, bisect, (lo, hi))
+            s_obst = jnp.min(jnp.where(any_hit, lo, inf))
+
+            s = jnp.minimum(jnp.minimum(s_robot, s_wall), s_obst)
+            s = jnp.where(jnp.isinf(s), 0.0, jnp.clip(s, 0, 1))
+            return p0 + s * delta, state.heading + s * dh
 
         @partial(jax.jit, static_argnums=2)
         def map_codes(state, robot, belief):
@@ -144,9 +217,15 @@ class Simulation:
     def reset(self, key, map_idx, num_maps):
         logits = jnp.where(jnp.arange(num_maps) == map_idx, 0.0, -jnp.inf)
         self.obs, self.state = self._reset(key, logits)
+        self.contact = None   # display positions at the contact of the last step (see contact_positions)
+        self.collided = None
 
     def step(self, key, deterministic):
-        self.obs, self.state, rewards, done, info = self._step(key, self.obs, self.state, deterministic)
+        self.obs, self.state, rewards, done, info, contact, collided = self._step(
+            key, self.obs, self.state, deterministic)
+        # contact instant (positions, headings) only for a step with a collision
+        contact, self.collided = jax.device_get((contact, collided))
+        self.contact = contact if self.collided.any() else None
         return jax.device_get((rewards, done, info))
 
     def map_codes(self, robot=0, belief=False):
@@ -171,7 +250,6 @@ class Simulations:
             bank = build_bank([self.maps[i] for i in members], cfg)
             params = EnvParams(bank=bank, map_logits=jnp.zeros(len(members)),
                                goal_coverage=jnp.float32(self.goal_coverage))
-            print(f'compiling the simulation for canvas {S} ({len(members)} maps)', flush=True)
             self._sims[S] = Simulation(cfg, self.actor, self.actor_params, params, self.start)
         return self._sims[S], members.index(map_idx), len(members)
 
@@ -195,6 +273,9 @@ class Viewer:
         self.show_crops = False
         self.show_scales = False
         self.show_belief = False
+        # statistics of the finished episodes (an episode left before its end is not counted)
+        self.outcomes = {'SUCCESS': 0, 'COLLISION': 0, 'TIMEOUT': 0}
+        self.recoverages = []   # final recoverage (overlap px / covered px) of each successful episode
 
         margin = 10
         self.map_rect = pygame.Rect(margin, margin, args.window, args.window)
@@ -234,7 +315,17 @@ class Viewer:
         if done:
             self.done = True
             self.done_time = time.perf_counter()
-            self.result = 'SUCCESS' if info['success'] else 'TRUNCATED'
+            self.result = 'SUCCESS' if info['success'] else 'COLLISION' if info['crashed'] else 'TIMEOUT'
+            self.outcomes[self.result] += 1
+            if self.result == 'SUCCESS':
+                self.recoverages.append(float(info['overlap']))
+            size = self.map_sizes[self.map_idx]
+            size_m = size * self.cfg.meters_per_pixel
+            print(f'Episode {sum(self.outcomes.values())} in {self.map_names[self.map_idx]} '
+                  f'({size} x {size} px, {size_m:g} x {size_m:g} m): {self.result} '
+                  f'after {int(info["length"])} steps ({int(info["length"]) * self.cfg.step_size:g} s), '
+                  f'coverage {100 * float(info["coverage"]):.1f} %, recoverage {100 * float(info["overlap"]):.1f} %',
+                  flush=True)
 
     def change_map(self, delta):
         self.map_idx = (self.map_idx + delta) % len(self.map_names)
@@ -336,13 +427,24 @@ class Viewer:
         self.screen.blit(pygame.transform.scale(surf, self.map_rect.size), self.map_rect)
 
         pos = state.pos * cfg.pixels_per_meter
+        heading = state.heading
         radius = max(3.0, float(cfg.radius_p * k))
+        # step with a collision: all the robots are drawn at the instant of the
+        # first contact (see contact_positions), the ones that collided with a red outline
+        collided = np.zeros(cfg.num_agents, dtype=bool)
+        contact = self.sim.contact is not None
+        if contact:
+            collided = self.sim.collided
+            pos = self.sim.contact[0] * cfg.pixels_per_meter
+            heading = self.sim.contact[1]
         if self.show_paths:
             for n, path in enumerate(self.paths):
+                if contact:
+                    path = path[:-1] + [tuple(pos[n])]
                 if len(path) > 1:
                     pts = [self.to_screen(*p) for p in path[-3000:]]
                     pygame.draw.lines(self.screen, ROBOT_COLORS[n % len(ROBOT_COLORS)], False, pts, 1)
-        if self.show_lidar:
+        if self.show_lidar and not contact:  # the lidar is measured at the env positions
             angles = np.linspace(-cfg.lidar_fov / 2, cfg.lidar_fov / 2, cfg.lidar_rays) * np.pi / 180
             for n in range(cfg.num_agents):
                 color = tuple(c // 2 + 127 for c in ROBOT_COLORS[n % len(ROBOT_COLORS)])
@@ -365,13 +467,15 @@ class Viewer:
             color = ROBOT_COLORS[n % len(ROBOT_COLORS)]
             center = self.to_screen(*pos[n])
             pygame.draw.circle(self.screen, color, center, radius)
+            if collided[n]:
+                pygame.draw.circle(self.screen, COLLISION_RED, center, radius, 4)  # inside: the edge is the body
             pygame.draw.circle(self.screen, BLACK, center, radius, 3 if n == self.selected else 1)
-            h = state.heading[n]
+            h = heading[n]
             tip = self.to_screen(pos[n, 0] + 2 * cfg.radius_p * np.cos(h), pos[n, 1] + 2 * cfg.radius_p * np.sin(h))
             pygame.draw.line(self.screen, BLACK, center, tip, 2)
         if self.show_crops:
             self.screen.set_clip(self.map_rect)
-            self.draw_crops(pos[self.selected], state.heading[self.selected])
+            self.draw_crops(pos[self.selected], heading[self.selected])
             self.screen.set_clip(None)
         pygame.draw.rect(self.screen, BLACK, self.map_rect, 1)
 
@@ -379,6 +483,31 @@ class Viewer:
             text = self.big_font.render(f'{self.result} - next map in {max(0, NEXT_MAP_DELAY - (time.perf_counter() - self.done_time)):.0f} s'
                                         if not self.paused else f'{self.result} (paused)', True, BLACK, PANEL_BG)
             self.screen.blit(text, text.get_rect(midtop=(self.map_rect.centerx, self.map_rect.y + 10)))
+
+    def draw_stats(self, r, y, recoverage):
+        """
+        Outcome rates of the finished episodes (they sum to 100 %) and the
+        recoverage (overlap px / covered px) of the current episode and the
+        mean over the successful episodes only (a collision or a timeout stops
+        the episode early, with a recoverage not comparable to a full one).
+        Returns the y below the block.
+        """
+        box = pygame.Rect(r.x + 8, y, r.width - 16, 84)
+        pygame.draw.rect(self.screen, WHITE, box)
+        pygame.draw.rect(self.screen, BLACK, box, 1)
+        total = sum(self.outcomes.values())
+        x = box.x + 10
+        self.screen.blit(self.font.render(f'finished episodes: {total}', True, BLACK), (x, box.y + 6))
+        colors = {'SUCCESS': (0, 140, 0), 'COLLISION': (210, 0, 0), 'TIMEOUT': (200, 120, 0)}
+        for i, (name, count) in enumerate(self.outcomes.items()):
+            rate = f'{100 * count / total:5.1f} %' if total else '   - %'
+            text = self.big_font.render(f'{name.lower()} {rate}', True, colors[name])
+            self.screen.blit(text, (x + i * (box.width - 20) // 3, box.y + 24))
+        mean = f'{100 * np.mean(self.recoverages):5.1f} %' if self.recoverages else '   - %'
+        text = self.big_font.render(f'recoverage  current {100 * recoverage:5.1f} %   mean (success) {mean}',
+                                    True, BLACK)
+        self.screen.blit(text, (x, box.y + 54))
+        return box.bottom + 6
 
     def draw_panel(self):
         cfg = self.cfg
@@ -407,6 +536,7 @@ class Viewer:
             color = ROBOT_COLORS[(i - 9) % len(ROBOT_COLORS)] if i >= 9 else BLACK
             self.screen.blit(self.font.render(line, True, color), (r.x + 8, y))
             y += 18
+        y = self.draw_stats(r, y + 6, overlap)
 
         # Egocentric multi-scale observation of the selected robot
         y += 4
@@ -600,7 +730,7 @@ def main():
             overrides['global_size'] = m
         # any valid canvas, the canvas of each map is set by Simulations
         overrides['canvas_size'] = math.lcm(m, overrides['global_size'])
-    env_cfg = EnvConfig.from_dict(overrides)
+    env_cfg = EnvConfig.from_dict(overrides).for_testing()
 
     actor, _ = make_networks(env_cfg, train_cfg)
     print(f'{len(files)} maps, {env_cfg.num_agents} robots, JAX device {jax.devices()[0]}', flush=True)

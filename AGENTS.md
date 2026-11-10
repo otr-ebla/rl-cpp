@@ -1,0 +1,1 @@
+Lavora sempre sul main branch, se crei un nuovo branch lo fai solo per testare una nuova feature, dopodiché checkout e rimetti tutto su main. Deve sopravvivere solo il branch main

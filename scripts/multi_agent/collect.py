@@ -32,9 +32,12 @@ gives their colors in the dashboard) and the settings of each map set. Then
 
 Per episode metrics:
   outcome            success, collision or timeout: exactly one per episode
-  success            reached --goal_coverage within --max_steps (without a
-                     collision with collision_ends_episode)
-  collision          ended by a collision (only with collision_ends_episode)
+  success            reached --goal_coverage within --max_steps without a
+                     collision
+  collision          ended by a collision: in every test the first collision
+                     (wall, obstacle or robot) ends the episode
+                     (EnvConfig.for_testing), the rates of success, collision
+                     and timeout add up to 1
   collision_robot    ended by a collision that involved another robot
   timeout            reached neither the goal coverage nor a collision
   coverage           final team coverage
@@ -205,7 +208,7 @@ class Evaluator:
         # canvas of the overridden configuration (scale_factor, global_size)
         cfg.update(canvas_size=canvas_size_for(self.map_sizes, SimpleNamespace(**cfg)), num_agents=num_agents,
                    max_episode_steps=self.args.max_steps, max_non_new_steps=self.args.max_steps)
-        return EnvConfig.from_dict(cfg)
+        return EnvConfig.from_dict(cfg).for_testing()
 
     def rollout(self, env_cfg, train_cfg):
         """Compiled once per environment and network configuration"""
@@ -261,8 +264,8 @@ class Evaluator:
         for e, m in enumerate(map_ids):
             ep = dict(common, map=self.map_names[m], episode=int(episodes[e]))
             covered_by = res['covered_by'][e]
-            # with collision_ends_episode the episode stops at the first collision
-            collision = env_cfg.collision_ends_episode and int(res['collisions'][e]) > 0
+            # the episode stops at the first collision (EnvConfig.for_testing)
+            collision = int(res['collisions'][e]) > 0
             success = not collision and res['coverage'][e] >= args.goal_coverage
             outcome = 'success' if success else 'collision' if collision else 'timeout'
             row = dict(ep, checkpoint=path, comm_range=env_cfg.comm_range, map_size=self.map_sizes[m],

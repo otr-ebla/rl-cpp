@@ -257,13 +257,17 @@ class Critic(nn.Module):
     gather: bool = False
 
     @nn.compact
-    def __call__(self, maps, lidar, global_maps, agent, others=None, others_mask=None, team=None, progress=None):
+    def __call__(self, maps, lidar, global_maps, agent, others=None, others_mask=None, team=None, progress=None,
+                 active=None):
+        """active: (B, N) bool, robots of the episode (None: all), parked robots are not in team"""
         B, N = maps.shape[:2]
         flat = lambda x: None if x is None else x.reshape((B * N,) + x.shape[2:])
         ego = local_encoding(self, flat(maps), flat(lidar), flat(others), flat(others_mask))
         parts = [ego.reshape(B, N, -1)]
         if team is not None:
             team_mask = jnp.broadcast_to(~jnp.eye(N, dtype=bool), (B, N, N))
+            if active is not None:
+                team_mask = team_mask & active[:, None, :]
             parts.append(PoseEncoder(self.neighbor_dims, self.neighbor_layers, self.neighbor_heads)(team, team_mask))
         if self.gather:
             g, at_robot = global_maps_encoding(self, global_maps, agent[..., :2])
@@ -296,6 +300,9 @@ class GlobalCritic(nn.Module):
                    team coverage, elapsed time, privileged features of each
                    robot (critic_workload, see MultiMowerEnv)
       progress:    (B, P) episode progress (see MultiMowerEnv)
+      active:      (B, N) bool, robots of the episode (None: all), the
+                   parked ones are left out of the self-attention (robot 0
+                   is always active)
     Returns (B, N) values.
     """
     hidden_dims: int = 256
@@ -306,12 +313,13 @@ class GlobalCritic(nn.Module):
     gather: bool = False
 
     @nn.compact
-    def __call__(self, global_maps, agent, progress):
+    def __call__(self, global_maps, agent, progress, active=None):
         B, N = agent.shape[:2]
         # pose and privileged features of each robot; coverage and time: the same for all robots
         poses, scalars = agent[..., :4], agent[:, 0, 4:6]
+        mask = jnp.ones((B, N), dtype=bool) if active is None else active
         robots = PoseEncoder(self.neighbor_dims, self.neighbor_layers, self.neighbor_heads, ego=False)(
-            jnp.concatenate([poses, agent[..., 6:]], axis=-1), jnp.ones((B, N), dtype=bool))
+            jnp.concatenate([poses, agent[..., 6:]], axis=-1), mask)
         if self.gather:
             g, at_robot = global_maps_encoding(self, global_maps, poses[..., :2])
             robots = jnp.concatenate([robots, at_robot], axis=-1)

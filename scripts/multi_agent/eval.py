@@ -9,6 +9,11 @@ Examples:
   python -m scripts.multi_agent.eval --load experiments/mappo_sb3_v2/checkpoint_best --num_agents 8 --episodes 3
   python -m scripts.multi_agent.eval --load experiments/mappo_sb3_v2/checkpoint_best --maps "maps/giant_mowing_*.png"
 
+As in every test, the first collision of any robot ends the episode
+(EnvConfig.for_testing): each episode ends with exactly one outcome, success
+(goal coverage reached), collision or timeout (--max_steps reached), whose
+rates add up to 1.
+
 The policy is shared by all robots and only uses each robot's own
 observation, so it can be evaluated with a different number of robots than
 it was trained with.
@@ -120,7 +125,7 @@ def main():
         overrides['num_agents'] = args.num_agents
     if args.comm_range is not None:
         overrides['comm_range'] = args.comm_range
-    env_cfg = EnvConfig.from_dict(overrides)
+    env_cfg = EnvConfig.from_dict(overrides).for_testing()
     out_dir = args.out or os.path.join(args.load, 'eval')
     os.makedirs(out_dir, exist_ok=True)
 
@@ -146,7 +151,12 @@ def main():
             idx = np.nonzero(cov >= c)[0]
             return (idx[0] + 1) * dt if len(idx) > 0 else float('nan')
 
-        row = dict(map=os.path.basename(files[m]), episode=e % args.episodes, steps=int(T),
+        ended = len(ends) > 0
+        success = ended and bool(info['success'][T - 1, e])
+        collision = ended and bool(info['crashed'][T - 1, e])
+        outcome = 'success' if success else 'collision' if collision else 'timeout'
+        row = dict(map=os.path.basename(files[m]), episode=e % args.episodes, outcome=outcome,
+                   success=int(success), collision=int(collision), timeout=int(outcome == 'timeout'), steps=int(T),
                    time=T * dt, coverage=float(cov[-1]), time_90=time_to(0.9),
                    time_95=time_to(0.95), time_99=time_to(0.99),
                    overlap=float(info['overlap'][T - 1, e]),
@@ -162,8 +172,10 @@ def main():
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
-    for k in ['coverage', 'time_90', 'time_99', 'overlap', 'collisions']:
-        print(f'mean {k}: {np.nanmean([r[k] for r in rows]):.3f}')
+    for k in ['success', 'collision', 'timeout', 'coverage', 'time_90', 'time_99', 'overlap', 'collisions']:
+        # the recoverage only counts on successful episodes (a collision or a timeout ends with a partial coverage)
+        vals = [r[k] for r in rows if r['success'] or k != 'overlap']
+        print(f'mean {k}{" (success)" if k == "overlap" else ""}: {np.nanmean(vals) if vals else float("nan"):.3f}')
     print('results in', out_dir)
 
 

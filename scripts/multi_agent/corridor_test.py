@@ -5,6 +5,9 @@ the multi-scale maps (input_size * scale_factor^(num_maps-1) pixels, 76.8 m
 with the default parameters, i.e. +-38.4 m around the robot along the
 corridor when the robot is aligned with it).
 
+As in every test, the first collision ends the episode
+(EnvConfig.for_testing): the outcome is success, collision or timeout.
+
 The robot starts inside the corridor (the random spawn of the environment
 almost never hits such a thin free region), covers it towards one end and
 then has to come back over already covered ground: once the uncovered part
@@ -104,7 +107,7 @@ def main():
         canvas_size=canvas_size_for([known.shape[0]], env_cfg),
         max_episode_steps=args.max_steps,
         max_non_new_steps=args.max_steps)
-    env_cfg = EnvConfig.from_dict(overrides)
+    env_cfg = EnvConfig.from_dict(overrides).for_testing()
     ppm, mpp = env_cfg.pixels_per_meter, env_cfg.meters_per_pixel
     reach_m = env_cfg.input_size * env_cfg.scale_factor ** (env_cfg.num_maps - 1) * mpp
     out_dir = args.out or os.path.join('results', 'corridor_marl', name)
@@ -165,7 +168,8 @@ def main():
             obs = env._observation(k_obs, state)
             out = dict(x=state.pos[0, 0], y=state.pos[0, 1], heading=state.heading[0],
                        coverage=info['coverage'], non_new_steps=state.non_new_steps,
-                       collisions=state.collisions[0], done=done | finished)
+                       collisions=state.collisions[0], done=done | finished,
+                       success=info['success'], crashed=info['crashed'])
             out.update(zip(['dist_uncovered', 'dist_left', 'dist_right', 'covered_lo', 'covered_hi'], column_stats(state)))
             return (obs, state, finished | done), out
 
@@ -175,7 +179,11 @@ def main():
     out = {k: np.asarray(v) for k, v in jax.device_get(rollout(jax.random.PRNGKey(args.seed))).items()}
     ends = np.nonzero(out['done'])[0]
     T = ends[0] + 1 if len(ends) > 0 else args.max_steps
-    out = {k: v[:T] for k, v in out.items() if k != 'done'}
+    ended = len(ends) > 0
+    success = ended and bool(out['success'][T - 1])
+    collision = ended and bool(out['crashed'][T - 1])
+    outcome = 'success' if success else 'collision' if collision else 'timeout'
+    out = {k: v[:T] for k, v in out.items() if k not in ('done', 'success', 'crashed')}
     dt = env_cfg.step_size
     t = np.arange(1, T + 1) * dt
     xc = x0 * mpp  # positions relative to the left end of the corridor
@@ -208,7 +216,7 @@ def main():
         largest_scale_m=reach_m, start_x_m=float(start_pos[0, 0] - xc), start_heading_deg=args.heading,
         precover_m=args.precover,
         deterministic=args.deterministic, seed=args.seed, steps=int(T), time_s=float(T * dt),
-        success=bool(rows['coverage'][-1] >= args.goal_coverage), final_coverage=float(rows['coverage'][-1]),
+        outcome=outcome, success=success, collision=collision, timeout=outcome == 'timeout', final_coverage=float(rows['coverage'][-1]),
         time_50=time_to(0.5), time_90=time_to(0.9), time_95=time_to(0.95), time_99=time_to(0.99),
         collisions=int(rows['collisions'][-1]),
         max_time_without_new_coverage_s=float(stalled.max() * dt),

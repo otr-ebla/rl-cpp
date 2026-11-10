@@ -1,5 +1,5 @@
 from argparse import BooleanOptionalAction
-from dataclasses import dataclass, asdict, fields
+from dataclasses import dataclass, asdict, fields, replace
 import json
 import math
 import os
@@ -12,7 +12,15 @@ class EnvConfig:
     array shapes or traced constants, i.e. it triggers a recompilation.
     Defaults follow rlm.mower_env.MowerEnv for the mowing task.
 
-    :param num_agents: Number of robots
+    :param num_agents: Number of robots (with min_agents: the maximum, the
+        number of robot slots of the arrays)
+    :param min_agents: Variable number of robots (0: off, always num_agents):
+        at every reset the number of robots of the episode is drawn uniformly
+        from min_agents, ..., num_agents (both included). The first ones are
+        active, the others are parked: they do not move, cover, collide, get
+        rewards or appear in any observation, and the training ignores them.
+        The arrays keep num_agents slots, so nothing is recompiled. Off in
+        every test (for_testing): a test runs exactly num_agents robots
     :param canvas_size: Size of the (square) canvas in pixels that holds a map,
         maps are placed in the top-left corner. Must be a multiple of
         scale_factor ** (num_maps - 1) and of canvas_size / global_size
@@ -102,7 +110,8 @@ class EnvConfig:
     :param max_stuck_steps: Collisions in a row before flipping the robot
     :param collision_ends_episode: Whether any collision (wall, obstacle or
         other robot) of any robot ends the episode at once, as a failure (not
-        a success even if the goal coverage is reached in the same step)
+        a success even if the goal coverage is reached in the same step).
+        Off in training by default, always on in every test (for_testing)
     :param goal_coverage_reward: Reward for reaching the target coverage
     :param wall_collision_reward: Reward for wall collision
     :param obstacle_collision_reward: Reward for obstacle collision
@@ -115,11 +124,6 @@ class EnvConfig:
     :param overlap_reward_scale: Reward multiplier for overlapping a previously covered area
     :param overlap_reward_max: Maximum overlap reward
     :param overlap_reward_always: Whether to always use overlap reward, or only when the area reward is 0
-    :param team_overlap_reward_scale: Penalty for the area a robot sweeps in a
-        step that was already covered by any robot (the true team coverage,
-        also with limited communication: centralized training), relative to
-        the maximum area a robot covers in a step (1: a step entirely on
-        covered ground costs team_overlap_reward_scale)
     :param workload_reward_scale: Team reward (the same for all robots) for
         balancing the workloads (needs workload_size): potential-based
         shaping gamma * phi(s') - phi(s) with phi = -maximum workload of the
@@ -135,6 +139,7 @@ class EnvConfig:
     :param truncation_reward_scale: Reward multiplier for episode truncation
     """
     num_agents: int = 4
+    min_agents: int = 0
     canvas_size: int = 320
     input_size: int = 32
     num_maps: int = 4
@@ -181,7 +186,6 @@ class EnvConfig:
     overlap_reward_scale: float = 0
     overlap_reward_max: float = 5
     overlap_reward_always: bool = False
-    team_overlap_reward_scale: float = 0
     workload_reward_scale: float = 0
     shaping_gamma: float = 0.99
     local_tv_reward_scale: float = 1
@@ -193,6 +197,7 @@ class EnvConfig:
 
     def __post_init__(self):
         assert self.num_agents >= 1
+        assert 0 <= self.min_agents <= self.num_agents, 'min_agents must be in [0, num_agents]'
         assert self.canvas_size % self.scale_factor ** (self.num_maps - 1) == 0, \
             'canvas_size must be a multiple of scale_factor ** (num_maps - 1)'
         assert self.canvas_size % self.global_size == 0, \
@@ -224,6 +229,10 @@ class EnvConfig:
     @property
     def limited_comm(self):
         return self.comm_range > 0 or self.no_communication
+
+    @property
+    def variable_agents(self):
+        return 0 < self.min_agents < self.num_agents
 
     @property
     def window(self):
@@ -284,6 +293,15 @@ class EnvConfig:
         width_m = 2 * self.mower_radius
         length_m = self.max_lin_vel * self.step_size
         return width_m * length_m * self.pixels_per_meter ** 2
+
+    def for_testing(self):
+        """
+        The configuration with the rules of every test and evaluation: any
+        collision ends the episode, so that success, collision and timeout
+        are mutually exclusive and their rates add up to 1, and exactly
+        num_agents robots (no variable number, min_agents)
+        """
+        return replace(self, collision_ends_episode=True, min_agents=0)
 
     def to_dict(self):
         return asdict(self)

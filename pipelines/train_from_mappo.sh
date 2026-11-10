@@ -25,14 +25,15 @@
 #                      position (critic_gather)
 #   mappo_agent_gather mappo_gather with the agent-specific critic
 #
-# Cooperative reward (MAPPO):
-#   mappo_tovl         penalty 0.3 for sweeping ground any robot has covered
-#                      (team_overlap_reward_scale, on the true team coverage)
-#   mappo_coop         mappo_tovl, the workload reward 0.02 (64 x 64 grid) and
-#                      the privileged workload features in the critic
-#                      (critic_workload)
-#   ippo_coop          mappo_coop with IPPO (the local critic gets no
-#                      privileged features), same rewards
+# Cooperative reward, workload reward 0.02 on a 64 x 64 grid:
+#   mappo_workload     the workload reward and the privileged workload
+#                      features in the critic (critic_workload)
+#   mappo_workload_nc  the workload reward only (the critic as mappo_rerun)
+#   ippo_workload      the workload reward with IPPO (local critic)
+#   mappo_crash_var    the recipe of experiments/mappo_crash_long (workload
+#                      reward, collisions end the episode, critic as
+#                      mappo_rerun) with a variable number of robots: at every
+#                      reset 2, ..., 8 robots (uniform, see EnvConfig.min_agents)
 # For limited communication add e.g. --comm_range 5 with OUT=experiments/<name>.
 #
 # A checkpoint whose critic does not match the configuration (the centralized
@@ -45,7 +46,7 @@ source "$(dirname "$0")/common.sh"
 MAPPO_RUN=${MAPPO_RUN:-experiments/mappo_sb3_v2}
 INIT=${INIT:-experiments/sb3_init/checkpoint}
 
-COOP=(--team_overlap_reward_scale 0.3 --workload_size 64 --workload_reward_scale 0.02 --critic_workload)
+WORKLOAD=(--workload_size 64 --workload_reward_scale 0.02)
 RECIPE=${1:?usage: $0 <recipe> [train options], recipes at the top of $0}
 shift
 case $RECIPE in
@@ -58,9 +59,10 @@ case $RECIPE in
   mappo_crop)         ARGS=(--algo mappo --global_crop) ;;
   mappo_gather)       ARGS=(--algo mappo --global_crop --critic_gather) ;;
   mappo_agent_gather) ARGS=(--algo mappo --critic_state agent_specific --global_crop --critic_gather) ;;
-  mappo_tovl)         ARGS=(--algo mappo --team_overlap_reward_scale 0.3) ;;
-  mappo_coop)         ARGS=(--algo mappo "${COOP[@]}") ;;
-  ippo_coop)          ARGS=(--algo ippo "${COOP[@]}") ;;
+  mappo_workload)     ARGS=(--algo mappo "${WORKLOAD[@]}" --critic_workload) ;;
+  mappo_workload_nc)  ARGS=(--algo mappo "${WORKLOAD[@]}") ;;
+  ippo_workload)      ARGS=(--algo ippo "${WORKLOAD[@]}") ;;
+  mappo_crash_var)    ARGS=(--algo mappo "${WORKLOAD[@]}" --collision_ends_episode --num_agents 8 --min_agents 2) ;;
   *) echo "unknown recipe $RECIPE (see the comments at the top of $0)"; exit 1 ;;
 esac
 OUT=${OUT:-experiments/$RECIPE}

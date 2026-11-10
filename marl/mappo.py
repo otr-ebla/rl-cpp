@@ -49,6 +49,7 @@ class Transition(NamedTuple):
     value: jnp.ndarray      # T x E x N (normalized if value normalization is used)
     reward: jnp.ndarray     # T x E x N
     done: jnp.ndarray       # T x E
+    active: jnp.ndarray     # T x E x N bool, robots of the episode (EnvConfig.min_agents)
 
 
 @flax.struct.dataclass
@@ -69,11 +70,13 @@ class ValueNorm:
         var = jnp.maximum(self.mean_sq / d - mean ** 2, 1e-2)
         return mean, jnp.sqrt(var)
 
-    def update(self, x):
+    def update(self, x, mask=None):
+        """Update with the values x where mask (default all)"""
         b = self.beta
+        mask = jnp.ones(x.shape, dtype=bool) if mask is None else mask
         return self.replace(
-            mean=b * self.mean + (1 - b) * jnp.mean(x),
-            mean_sq=b * self.mean_sq + (1 - b) * jnp.mean(x ** 2),
+            mean=b * self.mean + (1 - b) * masked_mean(x, mask),
+            mean_sq=b * self.mean_sq + (1 - b) * masked_mean(x ** 2, mask),
             debias=b * self.debias + (1 - b))
 
     def normalize(self, x):
@@ -92,6 +95,12 @@ class RunnerState(NamedTuple):
     env_state: object
     obs: dict
     key: jnp.ndarray
+
+
+def masked_mean(x, mask):
+    """Mean of x over the entries where mask (broadcast to x)"""
+    mask = jnp.broadcast_to(mask, x.shape).astype(x.dtype)
+    return jnp.sum(x * mask) / jnp.maximum(jnp.sum(mask), 1)
 
 
 def gaussian_log_prob(x, mean, log_std):
@@ -152,9 +161,9 @@ def critic_inputs(critic, obs):
     if isinstance(critic, LocalCritic):
         return obs['maps'], obs['lidar'], obs.get('others'), obs.get('others_mask')
     if isinstance(critic, GlobalCritic):
-        return obs['global'], obs['agent'], obs['progress']
+        return obs['global'], obs['agent'], obs['progress'], obs.get('active')
     return (obs['maps'], obs['lidar'], obs['global'], obs['agent'],
-            obs.get('others'), obs.get('others_mask'), obs.get('team'), obs.get('progress'))
+            obs.get('others'), obs.get('others_mask'), obs.get('team'), obs.get('progress'), obs.get('active'))
 
 
 def critic_value(critic, params, obs):
@@ -280,7 +289,7 @@ class MAPPO:
                 obs['global'] if central else None, obs['agent'] if central else None,
                 obs.get('others'), obs.get('others_mask'), obs.get('team') if agent_specific else None,
                 obs.get('progress') if central else None,
-                action, logp, value, reward, done)
+                action, logp, value, reward, done, obs['active'])
             info = dict(info, done=done)
             return (env_state, next_obs, key), (transition, info)
 
@@ -311,27 +320,31 @@ class MAPPO:
     @staticmethod
     def _batch_obs(batch):
         """Observation dict (see MultiMowerEnv) of a minibatch"""
-        obs = {k: batch[k] for k in ('lidar', 'agent', 'others', 'others_mask', 'team', 'progress') if k in batch}
+        obs = {k: batch[k] for k in ('lidar', 'agent', 'others', 'others_mask', 'team', 'progress', 'active')
+               if k in batch}
         obs['maps'] = to_channels_last(batch['maps'])
         if 'global_maps' in batch:
             obs['global'] = batch['global_maps']
         return obs
 
     def _actor_loss(self, params, batch):
+        # means over the active robots (the parked ones of EnvConfig.min_agents are ignored)
         cfg = self.cfg
         action = batch['action']
         old_logp = batch['logp']
         adv = batch['adv']
+        active = batch['active']
         mean, log_std = actor_apply(self.actor, params, self._batch_obs(batch))
         logp = gaussian_log_prob(action, mean, log_std)
         log_ratio = logp - old_logp
         ratio = jnp.exp(log_ratio)
-        pg_loss = -jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - cfg.clip_eps, 1 + cfg.clip_eps) * adv).mean()
-        entropy = gaussian_entropy(log_std).mean()
+        pg_loss = -masked_mean(jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - cfg.clip_eps, 1 + cfg.clip_eps) * adv),
+                               active)
+        entropy = masked_mean(gaussian_entropy(log_std), active)
         metrics = dict(
-            actor_loss=pg_loss, entropy=entropy, log_std=log_std.mean(),
-            approx_kl=((ratio - 1) - log_ratio).mean(),
-            clip_frac=(jnp.abs(ratio - 1) > cfg.clip_eps).mean())
+            actor_loss=pg_loss, entropy=entropy, log_std=masked_mean(log_std, active[..., None]),
+            approx_kl=masked_mean((ratio - 1) - log_ratio, active),
+            clip_frac=masked_mean((jnp.abs(ratio - 1) > cfg.clip_eps).astype(jnp.float32), active))
         return pg_loss - cfg.ent_coef * entropy, metrics
 
     def _critic_loss(self, params, value_norm, batch):
@@ -342,8 +355,8 @@ class MAPPO:
             target = value_norm.normalize(target)
         old_value = batch['value']
         value_clipped = old_value + jnp.clip(value - old_value, -cfg.value_clip_eps, cfg.value_clip_eps)
-        loss = jnp.maximum(huber(target - value, cfg.huber_delta),
-                           huber(target - value_clipped, cfg.huber_delta)).mean()
+        loss = masked_mean(jnp.maximum(huber(target - value, cfg.huber_delta),
+                                       huber(target - value_clipped, cfg.huber_delta)), batch['active'])
         return loss, dict(critic_loss=loss)
 
     def _update(self, runner: RunnerState, env_params: EnvParams, train_actor=True):
@@ -355,11 +368,15 @@ class MAPPO:
         last_value = self._value(runner.critic.params, runner.obs)
 
         # Advantages and value targets
+        # (the rewards of parked robots are 0, their advantages, targets and
+        # values are meaningless: all statistics are over the active robots)
         advantages, targets = self._gae(traj, last_value, runner.value_norm)
+        active = traj.active
+        var = lambda x: masked_mean(x ** 2, active) - masked_mean(x, active) ** 2
         # explained variance of the value targets by the values of the rollout
-        explained_variance = 1 - advantages.var() / (targets.var() + 1e-8)
-        value_norm = runner.value_norm.update(targets) if cfg.use_value_norm else runner.value_norm
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        explained_variance = 1 - var(advantages) / (var(targets) + 1e-8)
+        value_norm = runner.value_norm.update(targets, active) if cfg.use_value_norm else runner.value_norm
+        advantages = (advantages - masked_mean(advantages, active)) / (jnp.sqrt(jnp.maximum(var(advantages), 0)) + 1e-8)
 
         # Flatten time and environments. Minibatches are sampled over
         # environment steps, with all robots of each step.
@@ -417,7 +434,7 @@ class MAPPO:
             if train_actor:
                 actor = self._adapt_actor_lr(actor, final_kl)
             metrics['actor_lr'] = self.actor_lr(actor)
-        metrics['reward'] = traj.reward.mean()
+        metrics['reward'] = masked_mean(traj.reward, traj.active)
         metrics['explained_variance'] = explained_variance
         metrics['value_mean'], metrics['value_std'] = value_norm.stats()
 
@@ -593,6 +610,7 @@ def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', c
                 ep_length=ep('length'),
                 ep_return=ep('ep_return'),
                 collisions=ep('collisions'),
+                robots=ep('robots'),
                 **{f'ep_r_{name}': float(infos['terms'][done][:, k].mean()) if n_done > 0 else float('nan')
                    for k, name in enumerate(REWARD_TERMS)},
                 **metrics)
@@ -606,7 +624,8 @@ def train(env_cfg: EnvConfig, train_cfg: TrainConfig, logdir, maps_dir='maps', c
                 print(f"update {update}/{algo.num_updates}  steps {row['env_steps']:,}  "
                       f"sps {row['sps']:,.0f}  level {row['level']}  episodes {n_done}  "
                       f"success {row['success']:.2f}  coverage {row['coverage']:.3f}  "
-                      f"ep_len {row['ep_length']:.0f}  reward {metrics['reward']:.3f}  "
+                      f"ep_len {row['ep_length']:.0f}  reward {metrics['reward']:.3f}  " +
+                      (f"robots {row['robots']:.1f}  " if env_cfg.variable_agents else '') +
                       f"kl {metrics['approx_kl']:.4f}  actor_updates {metrics['actor_updates']:.2f}  "
                       f"entropy {metrics['entropy']:.3f}" +
                       (f"  actor_lr {metrics['actor_lr']:.2e}" if 'actor_lr' in metrics else ''), flush=True)
